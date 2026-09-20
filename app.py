@@ -15,7 +15,7 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# Injeção de CSS para layout Dark sofisticado e tipografia ampliada
+# Estilização CSS Dark Mode e tipografia ampliada
 st.markdown("""
 <style>
     /* Fundo geral e tipografia principal */
@@ -79,7 +79,6 @@ st.markdown("""
         border-radius: 6px;
         font-size: 0.85rem;
         font-weight: bold;
-        animation: pulse 1.5s infinite;
     }
     .badge-ev {
         background-color: #047857;
@@ -93,7 +92,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # ==========================================
-# 2. BANCO DE DADOS (SQLite Local)
+# 2. BANCO DE DADOS (SQLite com correção de migração)
 # ==========================================
 DB_NAME = "radar_dados.db"
 
@@ -120,11 +119,15 @@ def init_db():
             motivo_red TEXT
         )
     ''')
-    # Configuração dos perfis iniciais
+    
+    # Tratamento seguro: migra apostas antigas e remove chave anterior para evitar IntegrityError
+    c.execute("UPDATE apostas SET usuario = 'Palacio' WHERE usuario = 'Parceiro'")
+    c.execute("DELETE FROM perfis WHERE nome = 'Parceiro'")
+    
+    # Insere os perfis oficiais caso ainda não existam
     c.execute("INSERT OR IGNORE INTO perfis VALUES ('Guilherme', 564.40, 2.0)")
     c.execute("INSERT OR IGNORE INTO perfis VALUES ('Palacio', 500.0, 2.0)")
-    # Atualiza o nome se o banco antigo tiver 'Parceiro'
-    c.execute("UPDATE perfis SET nome = 'Palacio' WHERE nome = 'Parceiro'")
+    
     conn.commit()
     conn.close()
 
@@ -134,7 +137,7 @@ def get_db():
     return sqlite3.connect(DB_NAME)
 
 # ==========================================
-# 3. MOTOR DE RECOLHA DE JOGOS & HORÁRIOS
+# 3. MOTOR DE DADOS ESPORTIVOS (ESPN API)
 # ==========================================
 @st.cache_data(ttl=300)
 def carregar_jogos_reais():
@@ -151,7 +154,7 @@ def carregar_jogos_reais():
         {"mercado": "Mais de 1.5 Gols", "odd": 1.36, "prob": 0.83, "nota": "Alto volume ofensivo e transições rápidas."},
         {"mercado": "Hipótese Dupla: {casa} ou Empate", "odd": 1.28, "prob": 0.87, "nota": "Forte consistência como mandante."},
         {"mercado": "Ambas as Equipes Marcam: Sim", "odd": 1.74, "prob": 0.67, "nota": "Defesas vulneráveis e ataques eficientes."},
-        {"mercado": "Mais de 8.5 Escanteios", "odd": 1.48, "prob": 0.78, "nota": "Estilo de jogo com pressão constante pelas alas."},
+        {"mercado": "Mais de 8.5 Escanteios", "odd": 1.48, "prob": 0.78, "nota": "Pressão constante pelas alas e cruzamentos."},
         {"mercado": "Menos de 3.5 Gols", "odd": 1.32, "prob": 0.85, "nota": "Tendência tática truncada de meio-campo."},
         {"mercado": "Mais de 4.5 Cartões", "odd": 1.62, "prob": 0.71, "nota": "Histórico de alta intensidade e faltas táticas."}
     ]
@@ -170,9 +173,7 @@ def carregar_jogos_reais():
                     status_info = evento.get("status", {}).get("type", {})
                     estado = status_info.get("name", "")
                     
-                    # Filtrar agendados ou em andamento
                     if estado in ["STATUS_SCHEDULED", "STATUS_IN_PROGRESS"]:
-                        # Conversão e formatação do horário
                         data_iso = evento.get("date", "")
                         horario_str = "--:--"
                         if data_iso:
@@ -184,7 +185,6 @@ def carregar_jogos_reais():
                                 horario_str = "--:--"
                         
                         ao_vivo = estado == "STATUS_IN_PROGRESS"
-                        
                         competicoes = evento.get("competitions", [{}])[0]
                         competidores = competicoes.get("competitors", [])
                         
@@ -228,7 +228,7 @@ def carregar_jogos_reais():
 df_jogos = carregar_jogos_reais()
 
 # ==========================================
-# 4. BARRA LATERAL (PERFIL E BANCA)
+# 4. BARRA LATERAL (USUÁRIOS & GESTÃO)
 # ==========================================
 with st.sidebar:
     st.markdown("<h2 style='color: #38bdf8; margin-bottom: 0;'>🛡️ RADAR PRO</h2>", unsafe_allow_html=True)
@@ -258,7 +258,7 @@ with st.sidebar:
     conn.close()
 
 # ==========================================
-# 5. ABAS DO SISTEMA
+# 5. NAVEGAÇÃO PRINCIPAL
 # ==========================================
 tab_jogos, tab_diario, tab_stats = st.tabs([
     "🎯 Análise & Bilhete",
@@ -266,7 +266,7 @@ tab_jogos, tab_diario, tab_stats = st.tabs([
     "📈 Desempenho & Yield"
 ])
 
-# ABA 1: OPORTUNIDADES E HORÁRIOS
+# ABA 1: OPORTUNIDADES & BILHETE
 with tab_jogos:
     col_lista, col_bilhete = st.columns([3, 2], gap="large")
     
@@ -308,7 +308,6 @@ with tab_jogos:
             st.metric("Cotação Combinada", f"{odd_final:.2f}")
             st.write(f"**Seleções:** {qtd} confrontos")
             
-            # Dimensionamento recomendado
             if qtd == 1:
                 stake = valor_unidade * 1.0
                 st.info("Sugestão: **1.0 Unidade** (Aposta Simples)")
@@ -320,7 +319,7 @@ with tab_jogos:
                 st.info("Sugestão: **0.25 Unidade** (Múltipla Moderada)")
             else:
                 stake = valor_unidade * 0.1
-                st.warning("⚠️ Atenção: Mais de 4 jogos eleva exponencialmente a vantagem da casa.")
+                st.warning("⚠️ Atenção: Mais de 4 seleções elevam exponencialmente o risco.")
                 
             valor_apostar = st.number_input("Valor da Entrada (R$):", value=float(round(stake, 2)))
             
@@ -354,9 +353,9 @@ with tab_jogos:
             
             st.text_area("Copie o texto estruturado:", value=texto_wpp, height=170)
         else:
-            st.info("Marque as partidas na lista ao lado para calcular as odds e dimensionar a stake.")
+            st.info("Marque as partidas na lista ao lado para dimensionar o bilhete.")
 
-# ABA 2: DIÁRIO DE APOSTAS
+# ABA 2: DIÁRIO DE CONTROLE
 with tab_diario:
     st.markdown(f"### 📋 Diário Operacional — {usuario_ativo}")
     conn = get_db()
@@ -364,7 +363,7 @@ with tab_diario:
     conn.close()
     
     if df_apostas.empty:
-        st.info("Nenhuma entrada pendente ou arquivada.")
+        st.info("Nenhuma aposta registrada até o momento.")
     else:
         for _, row in df_apostas.iterrows():
             c1, c2, c3 = st.columns([3, 1.2, 2.8])
@@ -404,7 +403,7 @@ with tab_diario:
                         st.caption(f"Motivo: {row['motivo_red']}")
             st.markdown("<hr style='border: 0; border-top: 1px solid #1f2937; margin: 8px 0 12px 0;'>", unsafe_allow_html=True)
 
-# ABA 3: ESTATÍSTICAS E RENDIMENTO
+# ABA 3: ESTATÍSTICAS
 with tab_stats:
     st.markdown(f"### 📈 Métricas de Desempenho — {usuario_ativo}")
     conn = get_db()
@@ -412,7 +411,7 @@ with tab_stats:
     conn.close()
     
     if df_resolvidas.empty:
-        st.info("Conclua apostas no diário para visualizar o balanço.")
+        st.info("Valide entradas no diário para visualizar o balanço.")
     else:
         total = len(df_resolvidas)
         greens = len(df_resolvidas[df_resolvidas["status"] == "Green"])
