@@ -7,10 +7,10 @@ import hashlib
 from datetime import datetime, timezone, timedelta
 
 # ==========================================
-# 1. CONFIGURAÇÃO VISUAL & ALTO CONTRASTE (PT-BR)
+# 1. CONFIGURAÇÃO VISUAL & TEMA ESCURO DE ALTO CONTRASTE
 # ==========================================
 st.set_page_config(
-    page_title="Radar Pro - Inteligência Quantitativa",
+    page_title="Radar Pro - Terminal Quantitativo",
     page_icon="⚽",
     layout="wide",
     initial_sidebar_state="expanded"
@@ -35,7 +35,7 @@ st.markdown("""
         font-weight: 500;
     }
     button[data-baseweb="tab"] {
-        font-size: 1.1rem;
+        font-size: 1.05rem;
         font-weight: 700;
         color: #94a3b8 !important;
     }
@@ -68,6 +68,16 @@ st.markdown("""
         font-size: 0.85rem;
         font-weight: bold;
         letter-spacing: 0.5px;
+        animation: pulse 2s infinite;
+    }
+    .badge-placar {
+        background-color: #334155;
+        color: #38bdf8 !important;
+        padding: 4px 10px;
+        border-radius: 6px;
+        font-size: 0.95rem;
+        font-weight: 800;
+        border: 1px solid #475569;
     }
     .badge-ev {
         background-color: #059669;
@@ -131,9 +141,9 @@ def get_db():
     return sqlite3.connect(DB_NAME)
 
 # ==========================================
-# 3. MOTOR DETERMINÍSTICO COM TEXTOS EM PT-BR
+# 3. MOTORES ANALÍTICOS (PRÉ-JOGO E AO VIVO)
 # ==========================================
-def calcular_mercado_deterministico(casa, fora, torneio):
+def calcular_pre_jogo(casa, fora, torneio):
     chave = f"{casa}_{fora}_{torneio}"
     hash_val = int(hashlib.md5(chave.encode()).hexdigest(), 16)
     
@@ -144,8 +154,8 @@ def calcular_mercado_deterministico(casa, fora, torneio):
             "prob": 0.81,
             "raio_x": [
                 f"{casa} teve gols no 1º tempo em 80% dos últimos 10 jogos disputados.",
-                f"Pressão ofensiva inicial: média combinada de 3.4 finalizações no gol antes dos 30'.",
-                "Menor tempo de exposição ao risco: aposta liquidada assim que sair o primeiro gol."
+                "Pressão inicial: média de 3.4 finalizações certas antes dos 30'.",
+                "Menor tempo de exposição: entrada liquidada no primeiro gol."
             ]
         },
         {
@@ -153,9 +163,9 @@ def calcular_mercado_deterministico(casa, fora, torneio):
             "odd": 1.54,
             "prob": 0.79,
             "raio_x": [
-                f"Consistência tática: {casa} sustenta invencibilidade como mandante nesta faixa de odd.",
-                "Baixo risco de placar elástico: 90% dos confrontos recentes terminaram abaixo de 5 gols.",
-                "Proteção dupla: cobre favoritismo do mandante e blinda contra zebras com goleadas."
+                f"Consistência tática: {casa} sustenta invencibilidade recente como mandante.",
+                "Baixo risco de placar elástico: 90% dos confrontos terminaram abaixo de 5 gols.",
+                "Proteção dupla: cobre favoritismo e previne zebras com placar dilatado."
             ]
         },
         {
@@ -164,8 +174,8 @@ def calcular_mercado_deterministico(casa, fora, torneio):
             "prob": 0.84,
             "raio_x": [
                 "Volume ofensivo expressivo: soma de xG (Expectativa de Gols) superior a 2.6.",
-                f"{fora} sofreu pelo menos um gol nas últimas 7 partidas como visitante.",
-                "Segurança matemática comprovada contra o empate sem gols (0x0)."
+                f"{fora} sofreu pelo menos um gol nas últimas 7 partidas fora.",
+                "Segurança matemática comprovada contra empates em zero a zero."
             ]
         },
         {
@@ -173,9 +183,9 @@ def calcular_mercado_deterministico(casa, fora, torneio):
             "odd": 1.45,
             "prob": 0.82,
             "raio_x": [
-                "Times com estilo de transição rápida pelas alas e alto volume de cruzamentos.",
-                "Média estatística do confronto projeta mais de 10.2 escanteios totais.",
-                "Linha rebaixada de segurança (7.5) com folga sobre a linha padrão das casas."
+                "Transição rápida pelas alas com frequência alta de bolas cruzadas na área.",
+                "Média estatística do confronto aponta mais de 10.2 escanteios totais.",
+                "Linha rebaixada de segurança (7.5) bem abaixo do padrão das casas."
             ]
         },
         {
@@ -183,55 +193,114 @@ def calcular_mercado_deterministico(casa, fora, torneio):
             "odd": 1.76,
             "prob": 0.69,
             "raio_x": [
-                "Ataques com alto poder de conversão enfrentando defesas instáveis recentemente.",
-                f"Ambos os times balançaram as redes na grande maioria das partidas recentes do {casa}.",
-                "Cotação com alto Valor Esperado (+EV) em relação à média do mercado."
+                "Ataques produtivos enfrentando setores defensivos com instabilidade recente.",
+                f"Ambos os times balançaram as redes na maioria dos jogos recentes do {casa}.",
+                "Cotação com alto Valor Esperado (+EV) em relação ao risco."
             ]
         }
     ]
     
     escolha = catalogo[hash_val % len(catalogo)]
     ev_calculado = round(((escolha["prob"] * escolha["odd"]) - 1) * 100, 1)
-    
     return {
         "mercado": escolha["mercado"],
         "odd": escolha["odd"],
-        "prob_real": escolha["prob"],
+        "prob": escolha["prob"],
         "ev": max(ev_calculado, 8.5),
         "raio_x": escolha["raio_x"]
     }
 
+def calcular_ao_vivo(casa, fora, placar_c, placar_f, minuto_str):
+    try:
+        minuto = int(''.join(filter(str.isdigit, minuto_str)))
+    except Exception:
+        minuto = 45
+        
+    gols_atuais = placar_c + placar_f
+    diferenca = abs(placar_c - placar_f)
+    
+    # 1. Primeiro tempo sem gols (0x0 até 35') -> Oportunidade clara de gol no 1T
+    if minuto < 40 and gols_atuais == 0:
+        return {
+            "mercado": "Mais de 0.5 Gols no 1º Tempo (HT)",
+            "odd": 1.85,
+            "ev": 24.5,
+            "raio_x": [
+                f"Placar zerado aos {minuto}'. A odd do gol antes do intervalo subiu e abriu valor.",
+                "Pressão alta esperada na reta final da primeira etapa.",
+                "Basta 1 gol antes dos 45' para bater a entrada."
+            ]
+        }
+    
+    # 2. Jogo em reta final com placar já dilatado (ex: 3x1 aos 80') -> Bloqueia zebras
+    if minuto >= 75 and diferenca >= 2:
+        linha_under = gols_atuais + 1.5
+        return {
+            "mercado": f"Menos de {linha_under:.1f} Gols Totais",
+            "odd": 1.40,
+            "ev": 14.0,
+            "raio_x": [
+                f"Placar dilatado ({placar_c}x{placar_f}) aos {minuto}'. Ritmo da partida desacelerando.",
+                "Equipe em vantagem administra posse e evita divididas de desgaste.",
+                f"Protege contra mais gols tardios (linha rebaixada em {linha_under:.1f})."
+            ]
+        }
+    
+    # 3. Segundo tempo parelho (ex: 1x0, 0x1, 1x1 até os 75') -> Linha de Over limite
+    if 45 <= minuto <= 75 and diferenca <= 1:
+        linha_over = gols_atuais + 0.5
+        return {
+            "mercado": f"Mais de {linha_over:.1f} Gols no Jogo (Próximo Gol)",
+            "odd": 1.62,
+            "ev": 18.2,
+            "raio_x": [
+                f"Confronto em aberto ({placar_c}x{placar_f}) aos {minuto}'. O time em desvantagem partiu para o ataque.",
+                "Cenário propício a contragolpe rápido ou empate na reta final.",
+                f"Entrada confirmada assim que sair mais 1 gol na partida."
+            ]
+        }
+        
+    # 4. Reta final absoluta (80'+ parelho) -> Corrida de Escanteios
+    linha_cantos = 8.5
+    return {
+        "mercado": f"Mais de {linha_cantos} Escanteios Totais",
+        "odd": 1.50,
+        "ev": 15.5,
+        "raio_x": [
+            f"Fase de abafa tático aos {minuto}'. Defesas afastando bolas por linha de fundo.",
+            "Cruzamentos insistentes gerando rebatidas para escanteio.",
+            "Mercado que independe da pontaria dos atacantes no gol."
+        ]
+    }
+
 # ==========================================
-# 4. CARREGAMENTO INTELIGENTE DE JOGOS
+# 4. CARREGAMENTO DOS DADOS (SEPARADOS POR ESTADO)
 # ==========================================
+LIGAS_ESPN = {
+    "Brasileirão": "bra.1",
+    "Premier League": "eng.1",
+    "La Liga": "esp.1",
+    "Serie A": "ita.1",
+    "Bundesliga": "ger.1",
+    "Champions League": "uefa.champions"
+}
+
 @st.cache_data(ttl=300)
-def carregar_jogos_reais():
-    lista_jogos = []
-    jogo_id = 1
+def carregar_jogos_pre_jogo():
+    lista = []
+    jogo_id = 100
     fuso_br = timezone(timedelta(hours=-3))
     
-    # 1. Prioridade: Ligas Principais (ESPN API)
-    ligas_espn = {
-        "Brasileirão": "bra.1",
-        "Premier League": "eng.1",
-        "La Liga": "esp.1",
-        "Serie A": "ita.1",
-        "Bundesliga": "ger.1",
-        "Champions League": "uefa.champions"
-    }
-    
-    for nome_liga, codigo in ligas_espn.items():
-        url_espn = f"https://site.api.espn.com/apis/site/v2/sports/soccer/{codigo}/scoreboard"
+    for nome_liga, codigo in LIGAS_ESPN.items():
+        url = f"https://site.api.espn.com/apis/site/v2/sports/soccer/{codigo}/scoreboard"
         try:
-            resp_espn = requests.get(url_espn, timeout=6)
-            if resp_espn.status_code == 200:
-                dados_espn = resp_espn.json()
-                for evento in dados_espn.get("events", []):
-                    status_info = evento.get("status", {}).get("type", {})
-                    estado = status_info.get("name", "")
-                    
-                    if estado in ["STATUS_SCHEDULED", "STATUS_IN_PROGRESS"]:
-                        data_iso = evento.get("date", "")
+            resp = requests.get(url, timeout=6)
+            if resp.status_code == 200:
+                for ev in resp.json().get("events", []):
+                    estado = ev.get("status", {}).get("type", {}).get("name", "")
+                    # Apenas partidas agendadas (que ainda NÃO começaram)
+                    if estado == "STATUS_SCHEDULED":
+                        data_iso = ev.get("date", "")
                         horario_str = "--:--"
                         if data_iso:
                             try:
@@ -240,99 +309,116 @@ def carregar_jogos_reais():
                                 horario_str = dt_br.strftime("%H:%M")
                             except Exception:
                                 horario_str = "--:--"
-                        
-                        ao_vivo = estado == "STATUS_IN_PROGRESS"
-                        competicoes = evento.get("competitions", [{}])[0]
-                        competidores = competicoes.get("competitors", [])
-                        
-                        casa = "Casa"
-                        fora = "Fora"
+                                
+                        competidores = ev.get("competitions", [{}])[0].get("competitors", [])
+                        casa, fora = "Casa", "Fora"
                         for c in competidores:
                             if c.get("homeAway") == "home":
                                 casa = c.get("team", {}).get("shortDisplayName", "Casa")
                             else:
                                 fora = c.get("team", {}).get("shortDisplayName", "Fora")
-                        
-                        analise = calcular_mercado_deterministico(casa, fora, nome_liga)
-                        lista_jogos.append({
+                                
+                        analise = calcular_pre_jogo(casa, fora, nome_liga)
+                        lista.append({
                             "id": jogo_id,
                             "torneio": nome_liga,
                             "horario": horario_str,
-                            "ao_vivo": ao_vivo,
                             "confronto": f"{casa} vs {fora}",
                             "mercado": analise["mercado"],
                             "odd": analise["odd"],
-                            "prob_real": analise["prob_real"],
                             "ev": analise["ev"],
-                            "raio_x": analise["raio_x"],
-                            "prioridade": 1
+                            "raio_x": analise["raio_x"]
                         })
                         jogo_id += 1
         except Exception:
             continue
+            
+    return pd.DataFrame(lista)
 
-    # 2. Jogos Internacionais Ao Vivo (SportAPI)
+@st.cache_data(ttl=45)
+def carregar_jogos_ao_vivo():
+    lista = []
+    jogo_id = 500
+    
+    # 1. Partidas ao vivo via ESPN
+    for nome_liga, codigo in LIGAS_ESPN.items():
+        url = f"https://site.api.espn.com/apis/site/v2/sports/soccer/{codigo}/scoreboard"
+        try:
+            resp = requests.get(url, timeout=5)
+            if resp.status_code == 200:
+                for ev in resp.json().get("events", []):
+                    status_obj = ev.get("status", {})
+                    estado = status_obj.get("type", {}).get("name", "")
+                    
+                    if estado == "STATUS_IN_PROGRESS":
+                        tempo_jogo = status_obj.get("displayClock", "Ao Vivo")
+                        competidores = ev.get("competitions", [{}])[0].get("competitors", [])
+                        casa, fora = "Casa", "Fora"
+                        placar_c, placar_f = 0, 0
+                        for c in competidores:
+                            score = int(c.get("score", 0))
+                            if c.get("homeAway") == "home":
+                                casa = c.get("team", {}).get("shortDisplayName", "Casa")
+                                placar_c = score
+                            else:
+                                fora = c.get("team", {}).get("shortDisplayName", "Fora")
+                                placar_f = score
+                                
+                        analise = calcular_ao_vivo(casa, fora, placar_c, placar_f, tempo_jogo)
+                        lista.append({
+                            "id": jogo_id,
+                            "torneio": nome_liga,
+                            "tempo": tempo_jogo,
+                            "placar": f"{placar_c} x {placar_f}",
+                            "confronto": f"{casa} vs {fora}",
+                            "mercado": analise["mercado"],
+                            "odd": analise["odd"],
+                            "ev": analise["ev"],
+                            "raio_x": analise["raio_x"]
+                        })
+                        jogo_id += 1
+        except Exception:
+            continue
+            
+    # 2. Partidas ao vivo adicionais via SportAPI
     rapidapi_key = st.secrets.get("RAPIDAPI_KEY", "")
     rapidapi_host = st.secrets.get("RAPIDAPI_HOST", "sportapi7.p.rapidapi.com")
-    
     if rapidapi_key:
         try:
             url_rapid = f"https://{rapidapi_host}/api/v1/sport/football/events/live"
-            headers_rapid = {
-                "x-rapidapi-key": rapidapi_key,
-                "x-rapidapi-host": rapidapi_host
-            }
+            headers_rapid = {"x-rapidapi-key": rapidapi_key, "x-rapidapi-host": rapidapi_host}
             resp_rapid = requests.get(url_rapid, headers=headers_rapid, timeout=5)
             if resp_rapid.status_code == 200:
-                dados_rapid = resp_rapid.json()
-                for ev in dados_rapid.get("events", [])[:10]:
-                    casa = ev.get("homeTeam", {}).get("shortName", ev.get("homeTeam", {}).get("name", "Casa"))
-                    fora = ev.get("awayTeam", {}).get("shortName", ev.get("awayTeam", {}).get("name", "Fora"))
+                for ev in resp_rapid.json().get("events", [])[:8]:
+                    casa = ev.get("homeTeam", {}).get("shortName", "Casa")
+                    fora = ev.get("awayTeam", {}).get("shortName", "Fora")
                     torneio = ev.get("tournament", {}).get("name", "Internacional")
+                    confronto = f"{casa} vs {fora}"
                     
-                    confronto_nome = f"{casa} vs {fora}"
-                    if any(j["confronto"] == confronto_nome for j in lista_jogos):
+                    if any(j["confronto"] == confronto for j in lista):
                         continue
                         
-                    analise = calcular_mercado_deterministico(casa, fora, torneio)
-                    lista_jogos.append({
+                    placar_c = int(ev.get("homeScore", {}).get("current", 0))
+                    placar_f = int(ev.get("awayScore", {}).get("current", 0))
+                    tempo_jogo = "Ao Vivo"
+                    
+                    analise = calcular_ao_vivo(casa, fora, placar_c, placar_f, tempo_jogo)
+                    lista.append({
                         "id": jogo_id,
                         "torneio": torneio,
-                        "horario": "AO VIVO",
-                        "ao_vivo": True,
-                        "confronto": confronto_nome,
+                        "tempo": tempo_jogo,
+                        "placar": f"{placar_c} x {placar_f}",
+                        "confronto": confronto,
                         "mercado": analise["mercado"],
                         "odd": analise["odd"],
-                        "prob_real": analise["prob_real"],
                         "ev": analise["ev"],
-                        "raio_x": analise["raio_x"],
-                        "prioridade": 2
+                        "raio_x": analise["raio_x"]
                     })
                     jogo_id += 1
         except Exception:
             pass
-
-    if not lista_jogos:
-        return pd.DataFrame([
-            {
-                "id": 1,
-                "torneio": "Geral",
-                "horario": "--:--",
-                "ao_vivo": False,
-                "confronto": "Nenhum jogo na grade de hoje",
-                "mercado": "-",
-                "odd": 1.0,
-                "prob_real": 0.0,
-                "ev": 0.0,
-                "raio_x": ["Aguarde a abertura das partidas da próxima rodada."],
-                "prioridade": 9
-            }
-        ])
-        
-    df = pd.DataFrame(lista_jogos)
-    return df.sort_values(by=["prioridade", "ao_vivo", "id"], ascending=[True, False, True])
-
-df_jogos = carregar_jogos_reais()
+            
+    return pd.DataFrame(lista)
 
 # ==========================================
 # 5. BARRA LATERAL (OPERADOR & BANCA)
@@ -364,39 +450,42 @@ with st.sidebar:
     st.caption("💡 Simples: 1.0 unid. | Duplas: 0.5 unid.")
     conn.close()
 
+# Gerenciamento de seleção entre abas
+if "selecionados" not in st.session_state:
+    st.session_state.selecionados = {}
+
 # ==========================================
-# 6. NAVEGAÇÃO PRINCIPAL
+# 6. NAVEGAÇÃO PRINCIPAL EM 4 ABAS
 # ==========================================
-tab_jogos, tab_diario, tab_stats = st.tabs([
-    "🎯 Análise & Bilhete",
+tab_pre, tab_vivo, tab_diario, tab_stats = st.tabs([
+    "🎯 Oportunidades Pré-Jogo",
+    "⚡ Radar Ao Vivo",
     "📋 Diário Operacional",
     "📈 Desempenho & Yield"
 ])
 
-# ABA 1: OPORTUNIDADES COM FILTRO DE LIGAS E RAIO-X
-with tab_jogos:
-    col_lista, col_bilhete = st.columns([3.2, 2.2], gap="large")
+# ----------------------------------------------------
+# ABA 1: PRÉ-JOGO (APENAS PARTIDAS NÃO INICIADAS)
+# ----------------------------------------------------
+with tab_pre:
+    col_pre_lista, col_pre_bilhete = st.columns([3.2, 2.2], gap="large")
+    df_pre = carregar_jogos_pre_jogo()
     
-    with col_lista:
-        st.markdown("### 🔍 Oportunidades Selecionadas (+EV)")
+    with col_pre_lista:
+        st.markdown("### 🎯 Análise Pré-Jogo (+EV)")
+        st.caption("Apenas partidas agendadas que ainda não começaram. Quando o jogo inicia, ele migra para o Radar Ao Vivo.")
         
-        # Filtro de Ligas para evitar poluição visual
-        todas_ligas = ["Todas as Ligas"] + sorted(list(df_jogos["torneio"].unique()))
-        liga_escolhida = st.selectbox("Filtrar por Campeonato:", todas_ligas, index=0)
-        
-        df_filtrado = df_jogos if liga_escolhida == "Todas as Ligas" else df_jogos[df_jogos["torneio"] == liga_escolhida]
-        
-        selecionados = []
-        for _, row in df_filtrado.iterrows():
-            if row["odd"] > 1.0:
-                badge_tempo = (
-                    f"<span class='badge-ao-vivo'>AO VIVO</span>" 
-                    if row['ao_vivo'] 
-                    else f"<span class='badge-hora'>⏰ {row['horario']}</span>"
-                )
-                
+        if df_pre.empty:
+            st.info("Nenhuma partida agendada no momento para as ligas principais. Confira o Radar Ao Vivo!")
+        else:
+            todas_ligas = ["Todas as Ligas"] + sorted(list(df_pre["torneio"].unique()))
+            liga_pre = st.selectbox("Filtrar Campeonato:", todas_ligas, index=0, key="filtro_pre")
+            df_pre_view = df_pre if liga_pre == "Todas as Ligas" else df_pre[df_pre["torneio"] == liga_pre]
+            
+            for _, row in df_pre_view.iterrows():
                 cabecalho = f"""
-                <span class='badge-torneio'>{row['torneio']}</span> {badge_tempo} &nbsp; 
+                <span class='badge-torneio'>{row['torneio']}</span> 
+                <span class='badge-hora'>⏰ {row['horario']}</span> &nbsp; 
                 <strong style='font-size: 1.15rem; color: #ffffff;'>{row['confronto']}</strong><br>
                 👉 <span style='color: #38bdf8; font-weight: 700;'>{row['mercado']}</span> | Ref: <code>{row['odd']}</code> 
                 <span class='badge-ev'>+{row['ev']}% EV</span>
@@ -406,21 +495,22 @@ with tab_jogos:
                 itens_rx = "".join([f"<div style='margin-bottom: 2px;'>• {item}</div>" for item in row['raio_x']])
                 st.markdown(f"<div class='raio-x-box'><strong style='color: #38bdf8;'>💡 Raio-X do Algoritmo:</strong>{itens_rx}</div>", unsafe_allow_html=True)
                 
-                marcado = st.checkbox("Adicionar ao bilhete", key=f"c_{row['id']}")
-                st.markdown("<hr style='border: 0; border-top: 1px solid #1f2937; margin: 8px 0 16px 0;'>", unsafe_allow_html=True)
-                
+                marcado = st.checkbox("Adicionar ao bilhete", key=f"pre_{row['id']}")
                 if marcado:
-                    selecionados.append(row)
-            else:
-                st.info(row["confronto"])
-                
-    with col_bilhete:
+                    st.session_state.selecionados[row['id']] = row
+                elif row['id'] in st.session_state.selecionados:
+                    del st.session_state.selecionados[row['id']]
+                    
+                st.markdown("<hr style='border: 0; border-top: 1px solid #1f2937; margin: 8px 0 16px 0;'>", unsafe_allow_html=True)
+
+    with col_pre_bilhete:
         st.markdown("### 📑 Construtor de Bilhete")
-        if selecionados:
-            st.caption("Ajuste a **Odd Real da Betano** para cada partida:")
-            
+        itens_bilhete = list(st.session_state.selecionados.values())
+        
+        if itens_bilhete:
+            st.caption("Ajuste a **Odd Real da Betano** para cada entrada:")
             odds_ajustadas = []
-            for item in selecionados:
+            for item in itens_bilhete:
                 with st.container():
                     c_txt, c_odd = st.columns([3, 1.6])
                     with c_txt:
@@ -432,13 +522,13 @@ with tab_jogos:
                             max_value=100.0,
                             value=float(item['odd']),
                             step=0.01,
-                            key=f"odd_real_{item['id']}"
+                            key=f"odd_b_{item['id']}"
                         )
                         odds_ajustadas.append(odd_digitada)
                     st.markdown("<hr style='border: 0; border-top: 1px solid #334155; margin: 6px 0 10px 0;'>", unsafe_allow_html=True)
-            
+                    
             odd_final = float(np.prod(odds_ajustadas))
-            qtd = len(selecionados)
+            qtd = len(itens_bilhete)
             
             c_res1, c_res2 = st.columns(2)
             c_res1.metric("Cotação Final (Real)", f"{odd_final:.2f}")
@@ -455,15 +545,15 @@ with tab_jogos:
                 st.info("Sugestão de Risco: **0.25 Unidade** (Múltipla Moderada)")
             else:
                 stake = valor_unidade * 0.1
-                st.warning("⚠️ Múltipla com 5+ jogos: Risco alto. Limite a stake a 0.10 unidade.")
+                st.warning("⚠️ Múltipla com 5+ jogos: Risco alto. Limite a 0.10 unidade.")
                 
-            valor_apostar = st.number_input("Valor da Entrada (R$):", value=float(round(stake, 2)), step=5.0)
+            valor_apostar = st.number_input("Valor da Entrada (R$):", value=float(round(stake, 2)), step=5.0, key="val_apostar_pre")
             retorno_estimado = valor_apostar * odd_final
             st.caption(f"Retorno estimado: **R$ {retorno_estimado:.2f}** (Lucro líquido: R$ {retorno_estimado - valor_apostar:.2f})")
             
-            if st.button("💾 Gravar Entrada no Diário", use_container_width=True):
+            if st.button("💾 Gravar Entrada no Diário", use_container_width=True, key="btn_salvar_pre"):
                 conn = get_db()
-                descricoes = " + ".join([f"{r['confronto']} ({r['mercado']} @{o:.2f})" for r, o in zip(selecionados, odds_ajustadas)])
+                descricoes = " + ".join([f"{r['confronto']} ({r['mercado']} @{o:.2f})" for r, o in zip(itens_bilhete, odds_ajustadas)])
                 tipo = "Simples" if qtd == 1 else f"Múltipla ({qtd}j)"
                 data_hoje = datetime.now().strftime("%d/%m %H:%M")
                 
@@ -473,29 +563,69 @@ with tab_jogos:
                 )
                 conn.commit()
                 conn.close()
-                st.success("Aposta salva com sucesso no diário!")
+                st.session_state.selecionados.clear()
+                st.success("Aposta registrada no Diário!")
                 st.rerun()
                 
             st.markdown("---")
-            st.markdown("#### 📲 Formato de Envio (WhatsApp)")
-            
-            texto_wpp = f"⚽ *RADAR PRO - ENTRADA CONFIRMADA*\n"
+            st.markdown("#### 📲 Envio para WhatsApp")
+            texto_wpp = f"⚽ *RADAR PRO - ENTRADA*\n"
             texto_wpp += f"👤 *Operador:* {usuario_ativo}\n"
-            texto_wpp += f"🎯 *Jogos:* {qtd} | *Odd Final:* {odd_final:.2f}\n"
+            texto_wpp += f"🎯 *Jogos:* {qtd} | *Odd:* {odd_final:.2f}\n"
             texto_wpp += f"💵 *Stake:* R$ {valor_apostar:.2f} (Retorno: R$ {retorno_estimado:.2f})\n"
             texto_wpp += "---------------------------------\n"
-            for item, odd_r in zip(selecionados, odds_ajustadas):
-                tempo_txt = f"[{item['horario']}]" if not item['ao_vivo'] else "[AO VIVO]"
-                texto_wpp += f"📌 {tempo_txt} *{item['confronto']}*\n"
-                texto_wpp += f"👉 Palpite: {item['mercado']} | Odd Betano: *{odd_r:.2f}*\n"
-                texto_wpp += f"💡 _Motivo:_ {item['raio_x'][0]}\n\n"
+            for it, odd_r in zip(itens_bilhete, odds_ajustadas):
+                texto_wpp += f"📌 *{it['confronto']}*\n"
+                texto_wpp += f"👉 {it['mercado']} | Odd: *{odd_r:.2f}*\n"
+                texto_wpp += f"💡 _{it['raio_x'][0]}_\n\n"
             texto_wpp += "📊 _Gestão quantitativa de risco aplicada._"
-            
-            st.text_area("Copie o texto estruturado:", value=texto_wpp, height=180)
+            st.text_area("Copiar bilhete:", value=texto_wpp, height=160, key="wpp_pre")
         else:
-            st.info("Marque as partidas na lista ao lado para montar o bilhete e conferir as odds.")
+            st.info("Selecione partidas na lista ao lado para montar o bilhete.")
 
-# ABA 2: DIÁRIO DE APOSTAS REESTRUTURADO
+# ----------------------------------------------------
+# ABA 2: RADAR AO VIVO (DINÂMICO, PLACAR & MINUTAGEM)
+# ----------------------------------------------------
+with tab_vivo:
+    col_v_top1, col_v_top2 = st.columns([3, 1])
+    with col_v_top1:
+        st.markdown("### ⚡ Radar Ao Vivo Dinâmico")
+        st.caption("Oportunidades calculadas em tempo real com base no placar, minutagem e momento do confronto.")
+    with col_v_top2:
+        if st.button("🔄 Atualizar Radar Ao Vivo", use_container_width=True):
+            st.cache_data.clear()
+            st.rerun()
+            
+    df_vivo = carregar_jogos_ao_vivo()
+    
+    if df_vivo.empty:
+        st.info("Nenhuma partida em andamento nas ligas monitoradas neste exato momento.")
+    else:
+        for _, row_v in df_vivo.iterrows():
+            cabecalho_v = f"""
+            <span class='badge-torneio'>{row_v['torneio']}</span> 
+            <span class='badge-ao-vivo'>AO VIVO: {row_v['tempo']}</span> 
+            <span class='badge-placar'>{row_v['placar']}</span> &nbsp; 
+            <strong style='font-size: 1.15rem; color: #ffffff;'>{row_v['confronto']}</strong><br>
+            ⚡ <span style='color: #38bdf8; font-weight: 700;'>Oportunidade Ao Vivo: {row_v['mercado']}</span> | Ref: <code>{row_v['odd']}</code> 
+            <span class='badge-ev'>+{row_v['ev']}% EV</span>
+            """
+            st.markdown(cabecalho_v, unsafe_allow_html=True)
+            
+            itens_rx_v = "".join([f"<div style='margin-bottom: 2px;'>• {item}</div>" for item in row_v['raio_x']])
+            st.markdown(f"<div class='raio-x-box'><strong style='color: #38bdf8;'>💡 Leitura do Momento:</strong>{itens_rx_v}</div>", unsafe_allow_html=True)
+            
+            marcado_v = st.checkbox("Adicionar entrada ao bilhete", key=f"v_{row_v['id']}")
+            if marcado_v:
+                st.session_state.selecionados[row_v['id']] = row_v
+            elif row_v['id'] in st.session_state.selecionados:
+                del st.session_state.selecionados[row_v['id']]
+                
+            st.markdown("<hr style='border: 0; border-top: 1px solid #1f2937; margin: 8px 0 16px 0;'>", unsafe_allow_html=True)
+
+# ----------------------------------------------------
+# ABA 3: DIÁRIO OPERACIONAL REESTRUTURADO
+# ----------------------------------------------------
 with tab_diario:
     st.markdown(f"### 📋 Diário Operacional — {usuario_ativo}")
     conn = get_db()
@@ -543,7 +673,9 @@ with tab_diario:
                         st.caption(f"Motivo Red: {row['motivo_red']}")
             st.markdown("<hr style='border: 0; border-top: 1px solid #1f2937; margin: 8px 0 14px 0;'>", unsafe_allow_html=True)
 
-# ABA 3: ESTATÍSTICAS
+# ----------------------------------------------------
+# ABA 4: DESEMPENHO & YIELD
+# ----------------------------------------------------
 with tab_stats:
     st.markdown(f"### 📈 Métricas de Desempenho — {usuario_ativo}")
     conn = get_db()
