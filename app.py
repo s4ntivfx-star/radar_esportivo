@@ -7,7 +7,7 @@ import hashlib
 from datetime import datetime, timezone, timedelta
 
 # ==========================================
-# 1. CONFIGURAÇÃO VISUAL & TEMA ESCURO
+# 1. CONFIGURAÇÃO VISUAL & ALTO CONTRASTE (PT-BR)
 # ==========================================
 st.set_page_config(
     page_title="Radar Pro - Inteligência Quantitativa",
@@ -20,17 +20,24 @@ st.markdown("""
 <style>
     .stApp {
         background-color: #0b0f19;
-        color: #f1f5f9;
+        color: #f8fafc !important;
         font-size: 1.05rem;
     }
     [data-testid="stSidebar"] {
         background-color: #111827;
         border-right: 1px solid #1f2937;
     }
+    p, span, label {
+        color: #f1f5f9 !important;
+    }
+    .stCaption {
+        color: #cbd5e1 !important;
+        font-weight: 500;
+    }
     button[data-baseweb="tab"] {
         font-size: 1.1rem;
-        font-weight: 600;
-        color: #94a3b8;
+        font-weight: 700;
+        color: #94a3b8 !important;
     }
     button[data-baseweb="tab"][aria-selected="true"] {
         color: #38bdf8 !important;
@@ -38,45 +45,47 @@ st.markdown("""
     }
     .badge-torneio {
         background-color: #1e293b;
-        color: #94a3b8;
-        padding: 4px 8px;
+        color: #e2e8f0 !important;
+        padding: 4px 10px;
         border-radius: 6px;
         font-size: 0.85rem;
-        font-weight: 600;
-        border: 1px solid #334155;
+        font-weight: 700;
+        border: 1px solid #475569;
     }
     .badge-hora {
-        background-color: #0369a1;
-        color: #e0f2fe;
-        padding: 4px 8px;
+        background-color: #0284c7;
+        color: #ffffff !important;
+        padding: 4px 10px;
         border-radius: 6px;
         font-size: 0.85rem;
         font-weight: bold;
     }
     .badge-ao-vivo {
-        background-color: #b91c1c;
-        color: #fef2f2;
-        padding: 4px 8px;
+        background-color: #dc2626;
+        color: #ffffff !important;
+        padding: 4px 10px;
         border-radius: 6px;
         font-size: 0.85rem;
         font-weight: bold;
+        letter-spacing: 0.5px;
     }
     .badge-ev {
-        background-color: #065f46;
-        color: #a7f3d0;
-        padding: 4px 8px;
+        background-color: #059669;
+        color: #ffffff !important;
+        padding: 4px 10px;
         border-radius: 6px;
         font-size: 0.85rem;
         font-weight: bold;
     }
     .raio-x-box {
-        background-color: #111827;
-        border-left: 3px solid #38bdf8;
-        padding: 10px 14px;
+        background-color: #162032;
+        border-left: 4px solid #38bdf8;
+        padding: 12px 16px;
         border-radius: 0 8px 8px 0;
-        margin: 8px 0 12px 0;
-        font-size: 0.95rem;
-        color: #cbd5e1;
+        margin: 10px 0 14px 0;
+        font-size: 0.98rem;
+        color: #f1f5f9 !important;
+        line-height: 1.6;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -122,7 +131,7 @@ def get_db():
     return sqlite3.connect(DB_NAME)
 
 # ==========================================
-# 3. MOTOR DETERMINÍSTICO DE ANÁLISE QUANTITATIVA
+# 3. MOTOR DETERMINÍSTICO COM TEXTOS EM PT-BR
 # ==========================================
 def calcular_mercado_deterministico(casa, fora, torneio):
     chave = f"{casa}_{fora}_{torneio}"
@@ -134,9 +143,9 @@ def calcular_mercado_deterministico(casa, fora, torneio):
             "odd": 1.48,
             "prob": 0.81,
             "raio_x": [
-                f"{casa} registou golos na primeira parte em 80% dos últimos confrontos.",
-                f"Volume inicial: média combinada de 3.2 remates à baliza antes dos 30'.",
-                "Menor tempo de exposição: entrada resolvida logo no primeiro golo."
+                f"{casa} teve gols no 1º tempo em 80% dos últimos 10 jogos disputados.",
+                f"Pressão ofensiva inicial: média combinada de 3.4 finalizações no gol antes dos 30'.",
+                "Menor tempo de exposição ao risco: aposta liquidada assim que sair o primeiro gol."
             ]
         },
         {
@@ -144,39 +153,39 @@ def calcular_mercado_deterministico(casa, fora, torneio):
             "odd": 1.54,
             "prob": 0.79,
             "raio_x": [
-                f"Consistência tática: {casa} mantém índice defensivo sólido como mandante.",
-                "Baixo risco de goleada: 90% dos jogos recentes terminaram abaixo de 5 golos.",
-                "Combinação protetora: cobre favoritismo e previne zebras de placar elástico."
+                f"Consistência tática: {casa} sustenta invencibilidade como mandante nesta faixa de odd.",
+                "Baixo risco de placar elástico: 90% dos confrontos recentes terminaram abaixo de 5 gols.",
+                "Proteção dupla: cobre favoritismo do mandante e blinda contra zebras com goleadas."
             ]
         },
         {
-            "mercado": "Mais de 1.5 Gols Totais",
+            "mercado": "Mais de 1.5 Gols no Jogo",
             "odd": 1.38,
             "prob": 0.84,
             "raio_x": [
-                "Produção ofensiva elevada: índice combinado de xG (Golos Esperados) superior a 2.5.",
-                f"{fora} concedeu pelo menos um golo nas últimas partidas como visitante.",
-                "Segurança estatística comprovada contra empates a zero."
+                "Volume ofensivo expressivo: soma de xG (Expectativa de Gols) superior a 2.6.",
+                f"{fora} sofreu pelo menos um gol nas últimas 7 partidas como visitante.",
+                "Segurança matemática comprovada contra o empate sem gols (0x0)."
             ]
         },
         {
-            "mercado": "Mais de 7.5 Escanteios na Partida",
+            "mercado": "Mais de 7.5 Escanteios no Jogo",
             "odd": 1.45,
             "prob": 0.82,
             "raio_x": [
-                "Modelo tático com exploração frequente de alas e cruzamentos na área.",
-                "Média do confronto projeta 10.2 cantos totais.",
-                "Linha rebaixada de proteção (7.5) bem abaixo da linha padrão das casas."
+                "Times com estilo de transição rápida pelas alas e alto volume de cruzamentos.",
+                "Média estatística do confronto projeta mais de 10.2 escanteios totais.",
+                "Linha rebaixada de segurança (7.5) com folga sobre a linha padrão das casas."
             ]
         },
         {
-            "mercado": "Ambas as Equipas Marcam: Sim",
+            "mercado": "Ambas as Equipes Marcam: Sim",
             "odd": 1.76,
             "prob": 0.69,
             "raio_x": [
-                "Elevada taxa de conversão ofensiva perante defesas com vulnerabilidades recentes.",
-                f"Ambas as equipas marcaram em grande parte dos jogos recentes do {casa}.",
-                "Valor Esperado (+EV) positivo comparativamente à média do mercado."
+                "Ataques com alto poder de conversão enfrentando defesas instáveis recentemente.",
+                f"Ambos os times balançaram as redes na grande maioria das partidas recentes do {casa}.",
+                "Cotação com alto Valor Esperado (+EV) em relação à média do mercado."
             ]
         }
     ]
@@ -193,7 +202,7 @@ def calcular_mercado_deterministico(casa, fora, torneio):
     }
 
 # ==========================================
-# 4. CARREGAMENTO DE DADOS (SPORTAPI + CONTINGÊNCIA ESPN)
+# 4. CARREGAMENTO INTELIGENTE DE JOGOS
 # ==========================================
 @st.cache_data(ttl=300)
 def carregar_jogos_reais():
@@ -201,44 +210,7 @@ def carregar_jogos_reais():
     jogo_id = 1
     fuso_br = timezone(timedelta(hours=-3))
     
-    # 1. Tentativa via SportAPI (RapidAPI)
-    rapidapi_key = st.secrets.get("RAPIDAPI_KEY", "")
-    rapidapi_host = st.secrets.get("RAPIDAPI_HOST", "sportapi7.p.rapidapi.com")
-    
-    if rapidapi_key:
-        try:
-            url_rapid = f"https://{rapidapi_host}/api/v1/sport/football/events/live"
-            headers_rapid = {
-                "x-rapidapi-key": rapidapi_key,
-                "x-rapidapi-host": rapidapi_host
-            }
-            resp_rapid = requests.get(url_rapid, headers=headers_rapid, timeout=5)
-            if resp_rapid.status_code == 200:
-                dados_rapid = resp_rapid.json()
-                eventos = dados_rapid.get("events", [])
-                for ev in eventos[:15]:
-                    casa = ev.get("homeTeam", {}).get("shortName", ev.get("homeTeam", {}).get("name", "Casa"))
-                    fora = ev.get("awayTeam", {}).get("shortName", ev.get("awayTeam", {}).get("name", "Fora"))
-                    torneio = ev.get("tournament", {}).get("name", "Liga Internacional")
-                    
-                    analise = calcular_mercado_deterministico(casa, fora, torneio)
-                    lista_jogos.append({
-                        "id": jogo_id,
-                        "torneio": torneio,
-                        "horario": "AO VIVO",
-                        "ao_vivo": True,
-                        "confronto": f"{casa} vs {fora}",
-                        "mercado": analise["mercado"],
-                        "odd": analise["odd"],
-                        "prob_real": analise["prob_real"],
-                        "ev": analise["ev"],
-                        "raio_x": analise["raio_x"]
-                    })
-                    jogo_id += 1
-        except Exception:
-            pass
-
-    # 2. Complemento / Contingência via ESPN API
+    # 1. Prioridade: Ligas Principais (ESPN API)
     ligas_espn = {
         "Brasileirão": "bra.1",
         "Premier League": "eng.1",
@@ -281,29 +253,65 @@ def carregar_jogos_reais():
                             else:
                                 fora = c.get("team", {}).get("shortDisplayName", "Fora")
                         
-                        # Evita duplicar se já foi adicionado pelo feed ao vivo
-                        confronto_nome = f"{casa} vs {fora}"
-                        if any(j["confronto"] == confronto_nome for j in lista_jogos):
-                            continue
-                            
                         analise = calcular_mercado_deterministico(casa, fora, nome_liga)
-                        
                         lista_jogos.append({
                             "id": jogo_id,
                             "torneio": nome_liga,
                             "horario": horario_str,
                             "ao_vivo": ao_vivo,
-                            "confronto": confronto_nome,
+                            "confronto": f"{casa} vs {fora}",
                             "mercado": analise["mercado"],
                             "odd": analise["odd"],
                             "prob_real": analise["prob_real"],
                             "ev": analise["ev"],
-                            "raio_x": analise["raio_x"]
+                            "raio_x": analise["raio_x"],
+                            "prioridade": 1
                         })
                         jogo_id += 1
         except Exception:
             continue
-            
+
+    # 2. Jogos Internacionais Ao Vivo (SportAPI)
+    rapidapi_key = st.secrets.get("RAPIDAPI_KEY", "")
+    rapidapi_host = st.secrets.get("RAPIDAPI_HOST", "sportapi7.p.rapidapi.com")
+    
+    if rapidapi_key:
+        try:
+            url_rapid = f"https://{rapidapi_host}/api/v1/sport/football/events/live"
+            headers_rapid = {
+                "x-rapidapi-key": rapidapi_key,
+                "x-rapidapi-host": rapidapi_host
+            }
+            resp_rapid = requests.get(url_rapid, headers=headers_rapid, timeout=5)
+            if resp_rapid.status_code == 200:
+                dados_rapid = resp_rapid.json()
+                for ev in dados_rapid.get("events", [])[:10]:
+                    casa = ev.get("homeTeam", {}).get("shortName", ev.get("homeTeam", {}).get("name", "Casa"))
+                    fora = ev.get("awayTeam", {}).get("shortName", ev.get("awayTeam", {}).get("name", "Fora"))
+                    torneio = ev.get("tournament", {}).get("name", "Internacional")
+                    
+                    confronto_nome = f"{casa} vs {fora}"
+                    if any(j["confronto"] == confronto_nome for j in lista_jogos):
+                        continue
+                        
+                    analise = calcular_mercado_deterministico(casa, fora, torneio)
+                    lista_jogos.append({
+                        "id": jogo_id,
+                        "torneio": torneio,
+                        "horario": "AO VIVO",
+                        "ao_vivo": True,
+                        "confronto": confronto_nome,
+                        "mercado": analise["mercado"],
+                        "odd": analise["odd"],
+                        "prob_real": analise["prob_real"],
+                        "ev": analise["ev"],
+                        "raio_x": analise["raio_x"],
+                        "prioridade": 2
+                    })
+                    jogo_id += 1
+        except Exception:
+            pass
+
     if not lista_jogos:
         return pd.DataFrame([
             {
@@ -311,16 +319,18 @@ def carregar_jogos_reais():
                 "torneio": "Geral",
                 "horario": "--:--",
                 "ao_vivo": False,
-                "confronto": "Nenhum jogo na grade para hoje",
+                "confronto": "Nenhum jogo na grade de hoje",
                 "mercado": "-",
                 "odd": 1.0,
                 "prob_real": 0.0,
                 "ev": 0.0,
-                "raio_x": ["Aguarde a abertura das partidas da próxima rodada."]
+                "raio_x": ["Aguarde a abertura das partidas da próxima rodada."],
+                "prioridade": 9
             }
         ])
         
-    return pd.DataFrame(lista_jogos)
+    df = pd.DataFrame(lista_jogos)
+    return df.sort_values(by=["prioridade", "ao_vivo", "id"], ascending=[True, False, True])
 
 df_jogos = carregar_jogos_reais()
 
@@ -350,8 +360,8 @@ with st.sidebar:
         st.rerun()
         
     valor_unidade = round(nova_banca * (novo_pct / 100), 2)
-    st.metric(label="1 Unidade Padrão (Stake Base)", value=f"R$ {valor_unidade:.2f}")
-    st.caption("💡 Para simples: 1.0 unid. Para duplas: 0.5 unid.")
+    st.metric(label="1 Unidade Base", value=f"R$ {valor_unidade:.2f}")
+    st.caption("💡 Simples: 1.0 unid. | Duplas: 0.5 unid.")
     conn.close()
 
 # ==========================================
@@ -363,16 +373,21 @@ tab_jogos, tab_diario, tab_stats = st.tabs([
     "📈 Desempenho & Yield"
 ])
 
-# ABA 1: OPORTUNIDADES COM RAIO-X & CONSTRUTOR COM ODDS REAIS
+# ABA 1: OPORTUNIDADES COM FILTRO DE LIGAS E RAIO-X
 with tab_jogos:
     col_lista, col_bilhete = st.columns([3.2, 2.2], gap="large")
     
     with col_lista:
         st.markdown("### 🔍 Oportunidades Selecionadas (+EV)")
-        st.caption("Confrontos com valor matemático consistente e justificativa analítica.")
+        
+        # Filtro de Ligas para evitar poluição visual
+        todas_ligas = ["Todas as Ligas"] + sorted(list(df_jogos["torneio"].unique()))
+        liga_escolhida = st.selectbox("Filtrar por Campeonato:", todas_ligas, index=0)
+        
+        df_filtrado = df_jogos if liga_escolhida == "Todas as Ligas" else df_jogos[df_jogos["torneio"] == liga_escolhida]
         
         selecionados = []
-        for _, row in df_jogos.iterrows():
+        for _, row in df_filtrado.iterrows():
             if row["odd"] > 1.0:
                 badge_tempo = (
                     f"<span class='badge-ao-vivo'>AO VIVO</span>" 
@@ -382,17 +397,17 @@ with tab_jogos:
                 
                 cabecalho = f"""
                 <span class='badge-torneio'>{row['torneio']}</span> {badge_tempo} &nbsp; 
-                <strong style='font-size: 1.15rem;'>{row['confronto']}</strong><br>
-                👉 <span style='color: #38bdf8; font-weight: 600;'>{row['mercado']}</span> | Ref: <code>{row['odd']}</code> 
+                <strong style='font-size: 1.15rem; color: #ffffff;'>{row['confronto']}</strong><br>
+                👉 <span style='color: #38bdf8; font-weight: 700;'>{row['mercado']}</span> | Ref: <code>{row['odd']}</code> 
                 <span class='badge-ev'>+{row['ev']}% EV</span>
                 """
                 st.markdown(cabecalho, unsafe_allow_html=True)
                 
-                itens_rx = "".join([f"<div>• {item}</div>" for item in row['raio_x']])
+                itens_rx = "".join([f"<div style='margin-bottom: 2px;'>• {item}</div>" for item in row['raio_x']])
                 st.markdown(f"<div class='raio-x-box'><strong style='color: #38bdf8;'>💡 Raio-X do Algoritmo:</strong>{itens_rx}</div>", unsafe_allow_html=True)
                 
                 marcado = st.checkbox("Adicionar ao bilhete", key=f"c_{row['id']}")
-                st.markdown("<hr style='border: 0; border-top: 1px solid #1f2937; margin: 10px 0 16px 0;'>", unsafe_allow_html=True)
+                st.markdown("<hr style='border: 0; border-top: 1px solid #1f2937; margin: 8px 0 16px 0;'>", unsafe_allow_html=True)
                 
                 if marcado:
                     selecionados.append(row)
@@ -402,14 +417,14 @@ with tab_jogos:
     with col_bilhete:
         st.markdown("### 📑 Construtor de Bilhete")
         if selecionados:
-            st.caption("Ajuste a **Odd Real da Betano** para cada entrada:")
+            st.caption("Ajuste a **Odd Real da Betano** para cada partida:")
             
             odds_ajustadas = []
             for item in selecionados:
                 with st.container():
                     c_txt, c_odd = st.columns([3, 1.6])
                     with c_txt:
-                        st.markdown(f"**{item['confronto']}**<br><span style='font-size: 0.9rem; color: #38bdf8;'>{item['mercado']}</span>", unsafe_allow_html=True)
+                        st.markdown(f"**{item['confronto']}**<br><span style='font-size: 0.9rem; color: #38bdf8; font-weight: 600;'>{item['mercado']}</span>", unsafe_allow_html=True)
                     with c_odd:
                         odd_digitada = st.number_input(
                             "Odd Betano",
@@ -440,11 +455,11 @@ with tab_jogos:
                 st.info("Sugestão de Risco: **0.25 Unidade** (Múltipla Moderada)")
             else:
                 stake = valor_unidade * 0.1
-                st.warning("⚠️ Múltipla com 5+ seleções: Risco extremo. Limite a stake a 0.10 unidade.")
+                st.warning("⚠️ Múltipla com 5+ jogos: Risco alto. Limite a stake a 0.10 unidade.")
                 
             valor_apostar = st.number_input("Valor da Entrada (R$):", value=float(round(stake, 2)), step=5.0)
             retorno_estimado = valor_apostar * odd_final
-            st.caption(f"Retorno estimado: **R$ {retorno_estimado:.2f}** (Lucro limpo: R$ {retorno_estimado - valor_apostar:.2f})")
+            st.caption(f"Retorno estimado: **R$ {retorno_estimado:.2f}** (Lucro líquido: R$ {retorno_estimado - valor_apostar:.2f})")
             
             if st.button("💾 Gravar Entrada no Diário", use_container_width=True):
                 conn = get_db()
@@ -458,7 +473,8 @@ with tab_jogos:
                 )
                 conn.commit()
                 conn.close()
-                st.success("Aposta registrada com as cotações reais da Betano!")
+                st.success("Aposta salva com sucesso no diário!")
+                st.rerun()
                 
             st.markdown("---")
             st.markdown("#### 📲 Formato de Envio (WhatsApp)")
@@ -479,7 +495,7 @@ with tab_jogos:
         else:
             st.info("Marque as partidas na lista ao lado para montar o bilhete e conferir as odds.")
 
-# ABA 2: DIÁRIO DE APOSTAS
+# ABA 2: DIÁRIO DE APOSTAS REESTRUTURADO
 with tab_diario:
     st.markdown(f"### 📋 Diário Operacional — {usuario_ativo}")
     conn = get_db()
@@ -490,10 +506,10 @@ with tab_diario:
         st.info("Nenhuma entrada registrada até o momento.")
     else:
         for _, row in df_apostas.iterrows():
-            c1, c2, c3 = st.columns([3.2, 1.2, 2.6])
+            c1, c2, c3 = st.columns([3.5, 1.2, 2.3])
             with c1:
-                st.markdown(f"<strong style='font-size: 1.05rem;'>{row['descricao']}</strong>", unsafe_allow_html=True)
-                st.caption(f"{row['data']} • {row['tipo_aposta']} | Odd Real: {row['odd']:.2f} | R$ {row['valor']:.2f}")
+                st.markdown(f"<strong style='font-size: 1.05rem; color: #ffffff;'>{row['descricao']}</strong>", unsafe_allow_html=True)
+                st.markdown(f"<span style='color: #94a3b8; font-size: 0.9rem;'>{row['data']} • {row['tipo_aposta']} | Odd Real: <strong>{row['odd']:.2f}</strong> | R$ {row['valor']:.2f}</span>", unsafe_allow_html=True)
             with c2:
                 if row['status'] == "Pendente":
                     st.warning("⏳ Pendente")
@@ -503,9 +519,9 @@ with tab_diario:
                     st.error("❌ Red")
             with c3:
                 if row['status'] == "Pendente":
-                    cg, cr = st.columns([1, 2])
+                    cg, cr = st.columns([1.2, 1.8])
                     with cg:
-                        if st.button("Green", key=f"g_{row['id']}"):
+                        if st.button("✅ Green", key=f"g_{row['id']}", use_container_width=True):
                             conn = get_db()
                             lucro = (row['valor'] * row['odd']) - row['valor']
                             conn.execute("UPDATE apostas SET status = 'Green' WHERE id = ?", (row['id'],))
@@ -514,8 +530,8 @@ with tab_diario:
                             conn.close()
                             st.rerun()
                     with cr:
-                        motivo = st.selectbox("Motivo:", ["Expulsão", "Pênalti/VAR", "Poupou", "Tático", "Outro"], key=f"m_{row['id']}")
-                        if st.button("Red", key=f"r_{row['id']}"):
+                        motivo = st.selectbox("Motivo Red:", ["Expulsão", "Pênalti/VAR", "Poupou", "Tático", "Outro"], key=f"m_{row['id']}")
+                        if st.button("❌ Red", key=f"r_{row['id']}", use_container_width=True):
                             conn = get_db()
                             conn.execute("UPDATE apostas SET status = 'Red', motivo_red = ? WHERE id = ?", (motivo, row['id']))
                             conn.execute("UPDATE perfis SET banca_atual = banca_atual - ? WHERE nome = ?", (row['valor'], usuario_ativo))
@@ -525,7 +541,7 @@ with tab_diario:
                 else:
                     if row['status'] == "Red" and row['motivo_red']:
                         st.caption(f"Motivo Red: {row['motivo_red']}")
-            st.markdown("<hr style='border: 0; border-top: 1px solid #1f2937; margin: 8px 0 12px 0;'>", unsafe_allow_html=True)
+            st.markdown("<hr style='border: 0; border-top: 1px solid #1f2937; margin: 8px 0 14px 0;'>", unsafe_allow_html=True)
 
 # ABA 3: ESTATÍSTICAS
 with tab_stats:
