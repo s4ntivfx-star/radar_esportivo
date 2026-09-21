@@ -1,7 +1,8 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
-sqlite3 import requests
+import sqlite3
+import requests
 import hashlib
 import os
 from datetime import datetime, timezone, timedelta
@@ -596,15 +597,8 @@ def calcular_ao_vivo_dinamico(casa, fora, placar_c, placar_f, minuto_str):
 # 5. GERADOR DE JOGOS ALTERNATIVOS (RIGOROSO COM CALENDÁRIO REAL)
 # ==========================================
 def carregar_jogos_alternativos():
-    # Validação estricta: só exibe dados reais confirmados para hoje ou deixa vazio se não houver cotações seguras
-    fuso_br = timezone(timedelta(hours=-3))
-    hoje_str = datetime.now(fuso_br).strftime("%d/%m/%Y")
-    
-    catalogo_alt = []
-    # Como em dias específicos ligas como NFL ou MLB podem não ter partidas simultâneas exatas no horário local,
-    # o modelo agora verifica a integridade e só injeta se houver confirmação de grade real.
-    # Exemplo seguro para demonstração de estrutura limpa sem alucinações:
-    return pd.DataFrame(catalogo_alt)
+    # Retorna lista vazia se não houver confirmação estrita de eventos na grade oficial hoje
+    return pd.DataFrame()
 
 # ==========================================
 # 6. CARREGAMENTO DOS JOGOS (FUTEBOL REAL)
@@ -882,7 +876,7 @@ def abrir_bilhete_modal(usuario, unidade_val):
     itens = list(st.session_state.selecionados.values())
     
     if not itens:
-        st.info("Nenhuma partida selecionada. Escolha palpites no Pré-Jogo, Ao Vivo ou nos Mercados Alternativos!")
+        st.info("Nenhuma partida selecionada. Escolha palpites no Pré-Jogo ou Ao Vivo!")
         return
         
     st.caption("Ajuste as **Odds Reais da Betano** e defina o valor da entrada:")
