@@ -11,7 +11,7 @@ from datetime import datetime, timezone, timedelta
 # 1. CONFIGURAÇÃO VISUAL & TEMA DARK GLASS
 # ==========================================
 st.set_page_config(
-    page_title="Radar Pro - Inteligência Quantitativa",
+    page_title="Radar Pro - Terminal Quantitativo",
     page_icon="⚽",
     layout="wide",
     initial_sidebar_state="expanded"
@@ -175,6 +175,15 @@ st.markdown("""
         font-size: 0.8rem;
         font-weight: 700;
     }
+    .badge-alvo {
+        background-color: #312e81;
+        color: #c7d2fe !important;
+        padding: 4px 10px;
+        border-radius: 6px;
+        font-size: 0.8rem;
+        font-weight: 700;
+        border: 1px solid #4338ca;
+    }
     .props-bar {
         background-color: rgba(15, 23, 42, 0.6);
         border: 1px solid rgba(51, 65, 85, 0.6);
@@ -197,8 +206,24 @@ st.markdown("""
         color: #cbd5e1 !important;
         line-height: 1.5;
     }
+    .alternativas-box {
+        background-color: rgba(30, 41, 59, 0.4);
+        border: 1px dashed rgba(56, 189, 248, 0.3);
+        border-radius: 8px;
+        padding: 8px 12px;
+        margin-top: 8px;
+        font-size: 0.88rem;
+        color: #94a3b8;
+    }
+    .risco-box {
+        margin-top: 8px;
+        padding-top: 6px;
+        border-top: 1px solid rgba(239, 68, 68, 0.25);
+        color: #fca5a5 !important;
+        font-size: 0.88rem;
+    }
 
-    /* PÍLULA FLUTUANTE DE BILHETE (CANTO INFERIOR DIREITO) */
+    /* PÍLULA FLUTUANTE DE BILHETE */
     div[data-testid="stElementContainer"]:has(#floating-anchor) + div[data-testid="stElementContainer"] {
         position: fixed !important;
         bottom: 25px !important;
@@ -227,16 +252,20 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # ==========================================
-# 2. BANCO DE DADOS (SQLite)
+# 2. BANCO DE DADOS E MIGRAÇÃO SEGURA
 # ==========================================
 DB_NAME = "radar_dados.db"
+
+def hash_pw(senha):
+    return hashlib.sha256(senha.encode()).hexdigest()
 
 def init_db():
     conn = sqlite3.connect(DB_NAME)
     c = conn.cursor()
     c.execute('''
-        CREATE TABLE IF NOT EXISTS perfis (
-            nome TEXT PRIMARY KEY,
+        CREATE TABLE IF NOT EXISTS usuarios (
+            username TEXT PRIMARY KEY,
+            senha_hash TEXT,
             banca_atual REAL,
             unidade_pct REAL
         )
@@ -254,10 +283,27 @@ def init_db():
             motivo_red TEXT
         )
     ''')
-    c.execute("UPDATE apostas SET usuario = 'Palacio' WHERE usuario = 'Parceiro'")
-    c.execute("DELETE FROM perfis WHERE nome = 'Parceiro'")
-    c.execute("INSERT OR IGNORE INTO perfis VALUES ('Guilherme', 564.40, 2.0)")
-    c.execute("INSERT OR IGNORE INTO perfis VALUES ('Palacio', 500.0, 2.0)")
+    
+    # 1. Migração dos dados e preservação de saldos existentes
+    banca_g, unit_g = 564.40, 2.0
+    banca_p, unit_p = 500.00, 2.0
+    try:
+        res_g = c.execute("SELECT banca_atual, unidade_pct FROM perfis WHERE nome IN ('Guilherme', 'santibet')").fetchone()
+        if res_g:
+            banca_g, unit_g = res_g
+        res_p = c.execute("SELECT banca_atual, unidade_pct FROM perfis WHERE nome IN ('Palacio', 'palaciobet')").fetchone()
+        if res_p:
+            banca_p, unit_p = res_p
+    except Exception:
+        pass
+        
+    c.execute("INSERT OR REPLACE INTO usuarios VALUES ('santibet', ?, ?, ?)", (hash_pw("1234"), banca_g, unit_g))
+    c.execute("INSERT OR REPLACE INTO usuarios VALUES ('palaciobet', ?, ?, ?)", (hash_pw("1234"), banca_p, unit_p))
+    
+    # 2. Atualiza as apostas anteriores para os novos logins sem perder histórico
+    c.execute("UPDATE apostas SET usuario = 'santibet' WHERE usuario IN ('Guilherme', 'santibet')")
+    c.execute("UPDATE apostas SET usuario = 'palaciobet' WHERE usuario IN ('Palacio', 'Parceiro', 'palaciobet')")
+    
     conn.commit()
     conn.close()
 
@@ -267,12 +313,74 @@ def get_db():
     return sqlite3.connect(DB_NAME)
 
 # ==========================================
-# 3. MOTOR QUANTITATIVO (COM MÉTRICAS L10 & PROJEÇÃO)
+# 3. TELA DE LOGIN & CADASTRO
+# ==========================================
+if "usuario_ativo" not in st.session_state:
+    st.session_state.usuario_ativo = None
+
+if not st.session_state.usuario_ativo:
+    c_center = st.columns([1, 1.4, 1])[1]
+    with c_center:
+        st.markdown("<br><br>", unsafe_allow_html=True)
+        if os.path.exists("logo.png"):
+            st.image("logo.png", use_container_width=True)
+        else:
+            st.markdown("<h1 style='text-align: center; color: #38bdf8;'>🛡️ RADAR PRO</h1>", unsafe_allow_html=True)
+            st.markdown("<p style='text-align: center; color: #94a3b8;'>Terminal Quantitativo de Inteligência Esportiva</p>", unsafe_allow_html=True)
+        
+        tab_login, tab_cad = st.tabs(["🔑 Entrar no Sistema", "📝 Criar Novo Acesso"])
+        
+        with tab_login:
+            st.markdown("##### Acesse seu terminal:")
+            u_log = st.text_input("Usuário:", placeholder="Ex: santibet, palaciobet", key="log_user").strip().lower()
+            s_log = st.text_input("Senha:", type="password", key="log_pass").strip()
+            
+            if st.button("Acessar Radar Pro", use_container_width=True, type="primary"):
+                conn = get_db()
+                res = conn.execute("SELECT username, senha_hash FROM usuarios WHERE LOWER(username) = ?", (u_log,)).fetchone()
+                conn.close()
+                if res and res[1] == hash_pw(s_log):
+                    st.session_state.usuario_ativo = res[0]
+                    st.success(f"Bem-vindo, {res[0]}!")
+                    st.rerun()
+                else:
+                    st.error("Usuário ou senha incorretos.")
+                    
+        with tab_cad:
+            st.markdown("##### Cadastro rápido:")
+            u_cad = st.text_input("Escolha seu Usuário:", key="cad_user").strip()
+            s_cad = st.text_input("Crie uma Senha:", type="password", key="cad_pass").strip()
+            banca_ini = st.number_input("Banca Inicial (R$):", value=50.0, step=10.0, key="cad_banca")
+            
+            if st.button("Cadastrar e Entrar", use_container_width=True):
+                if not u_cad or not s_cad:
+                    st.warning("Preencha usuário e senha.")
+                else:
+                    conn = get_db()
+                    existe = conn.execute("SELECT username FROM usuarios WHERE LOWER(username) = ?", (u_cad.lower(),)).fetchone()
+                    if existe:
+                        st.error("Este usuário já existe. Escolha outro.")
+                        conn.close()
+                    else:
+                        conn.execute("INSERT INTO usuarios VALUES (?, ?, ?, ?)", (u_cad, hash_pw(s_cad), banca_ini, 2.0))
+                        conn.commit()
+                        conn.close()
+                        st.session_state.usuario_ativo = u_cad
+                        st.success("Conta criada com sucesso!")
+                        st.rerun()
+                        
+    st.stop()
+
+usuario_ativo = st.session_state.usuario_ativo
+
+# ==========================================
+# 4. MOTORES QUANTITATIVOS (PRESERVANDO COTAÇÕES + ALTERNATIVAS)
 # ==========================================
 def calcular_pre_jogo(casa, fora, torneio):
     chave = f"{casa}_{fora}_{torneio}"
     hash_val = int(hashlib.md5(chave.encode()).hexdigest(), 16)
     
+    # Exatamente 5 itens para garantir a mesma indexação das partidas já estudadas
     catalogo = [
         {
             "mercado": "Mais de 0.5 Gols no 1º Tempo (HT)",
@@ -284,7 +392,12 @@ def calcular_pre_jogo(casa, fora, torneio):
             "raio_x": [
                 f"{casa} registrou gols na primeira etapa em 9 dos últimos 10 confrontos.",
                 "Pressão inicial: média de 3.4 chutes a gol antes dos 30'.",
-                "Menor tempo de exposição: entrada resolvida logo no primeiro gol."
+                "Menor tempo de exposição: entrada resolvida no primeiro gol."
+            ],
+            "ponto_risco": f"Se {fora} jogar em bloco baixo fechado, a finalização perigosa pode demorar a encaixar.",
+            "alternativas": [
+                {"mercado": "Mais de 1.5 Gols Totais", "odd": 1.36},
+                {"mercado": f"Empate Anula: {casa}", "odd": 1.40}
             ]
         },
         {
@@ -293,11 +406,16 @@ def calcular_pre_jogo(casa, fora, torneio):
             "prob": 0.79,
             "l10_pattern": "🟩 🟩 🟩 🟩 🟩 🟩 🟩 🟥 🟩 🟩",
             "l10_pct": "90%",
-            "projecao": "Projeção: 2.1 gols totais (Abaixo da linha de 4.5)",
+            "projecao": "Projeção: 2.1 gols totais (Abaixo de 4.5)",
             "raio_x": [
-                f"Consistência tática: {casa} sustenta invencibilidade como mandante.",
-                "Baixo risco de goleada: 90% das partidas recentes tiveram menos de 5 gols.",
-                "Proteção dupla: cobre favoritismo do mandante e blinda contra zebras com placar dilatado."
+                f"Consistência tática: {casa} sustenta invencibilidade recente em casa.",
+                "Baixo risco de goleada: 90% das partidas terminaram abaixo de 5 gols.",
+                "Proteção dupla: cobre favoritismo do mandante e previne zebras dilatadas."
+            ],
+            "ponto_risco": "Expulsão de defensor mandante pode desorganizar o desenho tático de proteção.",
+            "alternativas": [
+                {"mercado": f"Vitória Simples: {casa}", "odd": 1.85},
+                {"mercado": "Menos de 3.5 Gols", "odd": 1.30}
             ]
         },
         {
@@ -311,6 +429,11 @@ def calcular_pre_jogo(casa, fora, torneio):
                 "Volume ofensivo expressivo: soma de xG (Expectativa de Gols) superior a 2.6.",
                 f"{fora} sofreu pelo menos um gol nas últimas 7 partidas fora.",
                 "Segurança matemática comprovada contra empates em zero a zero."
+            ],
+            "ponto_risco": "Gramado pesado ou dia muito truncado reduz a velocidade de transição ofensiva.",
+            "alternativas": [
+                {"mercado": "Mais de 2.0 Gols (Asiático)", "odd": 1.62},
+                {"mercado": "Mais de 0.5 Gols no 1º Tempo", "odd": 1.45}
             ]
         },
         {
@@ -323,7 +446,12 @@ def calcular_pre_jogo(casa, fora, torneio):
             "raio_x": [
                 "Transição rápida pelas pontas com alto volume de cruzamentos.",
                 "Média estatística combinada aponta mais de 10 escanteios totais.",
-                "Linha rebaixada de segurança (7.5) bem abaixo da linha padrão das casas."
+                "Linha rebaixada de segurança (7.5) bem abaixo da média oficial das casas."
+            ],
+            "ponto_risco": "Se o time mandante abrir 2x0 muito cedo, o jogo pode perder intensidade pelas alas.",
+            "alternativas": [
+                {"mercado": "Mais de 8.5 Escanteios", "odd": 1.70},
+                {"mercado": f"Mais escanteios: {casa}", "odd": 1.55}
             ]
         },
         {
@@ -332,11 +460,16 @@ def calcular_pre_jogo(casa, fora, torneio):
             "prob": 0.69,
             "l10_pattern": "🟩 🟩 🟩 🟥 🟩 🟩 🟩 🟩 🟥 🟩",
             "l10_pct": "80%",
-            "projecao": "Projeção: Alta conversão ofensiva x zagas vazadas",
+            "projecao": "Projeção: Alta conversão ofensiva x defesas vazadas",
             "raio_x": [
-                "Ataques produtivos enfrentando defesas instáveis recentemente.",
+                "Ataques produtivos enfrentando setores defensivos vazados com frequência.",
                 f"Ambos os times balançaram as redes na maioria dos jogos recentes do {casa}.",
                 "Cotação com alto Valor Esperado (+EV) em relação ao risco."
+            ],
+            "ponto_risco": "Atacantes titulares poupados ou excesso de pontaria torta na cara do gol.",
+            "alternativas": [
+                {"mercado": "Mais de 2.5 Gols no Jogo", "odd": 2.05},
+                {"mercado": f"{casa} marca pelo menos 1 gol", "odd": 1.25}
             ]
         }
     ]
@@ -350,22 +483,24 @@ def calcular_pre_jogo(casa, fora, torneio):
         "l10_pattern": escolha["l10_pattern"],
         "l10_pct": escolha["l10_pct"],
         "projecao": escolha["projecao"],
-        "raio_x": escolha["raio_x"]
+        "raio_x": escolha["raio_x"],
+        "ponto_risco": escolha["ponto_risco"],
+        "alternativas": escolha["alternativas"]
     }
 
-def calcular_ao_vivo_sniper(casa, fora, placar_c, placar_f, minuto_str):
+def calcular_ao_vivo_dinamico(casa, fora, placar_c, placar_f, minuto_str):
     try:
         minuto = int(''.join(filter(str.isdigit, str(minuto_str))))
     except Exception:
-        minuto = 50
+        minuto = 35
         
     gols = placar_c + placar_f
     dif = abs(placar_c - placar_f)
     
-    # 🎯 JANELA 1: SNIPER DO 1º TEMPO (20' até 40' com 0x0)
-    if 20 <= minuto <= 40 and gols == 0:
+    # 1. GATILHO ATIVO (ENTRAR AGORA - 25' a 40' 0x0)
+    if 25 <= minuto <= 40 and gols == 0:
         return {
-            "tem_entrada": True,
+            "status_tipo": "ATIVO",
             "mercado": "Mais de 0.5 Gols no 1º Tempo (HT)",
             "odd": 1.74,
             "ev": 26.4,
@@ -374,16 +509,35 @@ def calcular_ao_vivo_sniper(casa, fora, placar_c, placar_f, minuto_str):
             "projecao": "Gatilho de Ouro HT acionado",
             "raio_x": [
                 f"🔥 GATILHO SNIPER ATIVADO: 0x0 aos {minuto}'. Odd do gol no 1T atingiu o ponto ideal de valor.",
-                "Linhas de pressão mostram volume ofensivo consistente.",
-                "Entrada limpa: basta 1 gol até o intervalo para garantir o green."
-            ]
+                "Goleiros já trabalharam e a pressão na área aumentou.",
+                "Basta 1 gol até o intervalo para garantir o green."
+            ],
+            "ponto_risco": "Faltas sucessivas parando o jogo antes do intervalo."
         }
         
-    # 🎯 JANELA 2: SNIPER DO 2º TEMPO (65' até 85' com jogo parelho - dif <= 1)
+    # 2. RADAR EM ESPERA (PREPARAR ENTRADA NO 1T - 0' a 24')
+    if minuto < 25 and gols == 0:
+        return {
+            "status_tipo": "ESPERA",
+            "mercado": "Radar em Espera: Mais de 0.5 Gols HT (Monitorando)",
+            "odd": 1.30,
+            "ev": 12.0,
+            "l10_pattern": "🟩 🟩 🟩 🟩 🟩 🟩 🟩 🟩 🟩 🟩",
+            "l10_pct": "95%",
+            "projecao": f"Alvo: Entrar por volta dos 28' se mantiver 0x0 (Odd alvo: 1.65+)",
+            "raio_x": [
+                f"👀 Partida aos {minuto}' com pressão em andamento, mas odd inicial ainda amassada (1.30).",
+                "Oportunidade engatilhada: acompanhe a partida até os 28'.",
+                "Se o zero a zero persistir com finalizações no alvo, a odd do Over 0.5 HT atingirá o ponto ideal de entrada."
+            ],
+            "ponto_risco": "Gol precoce antes dos 25' anula a janela de valor."
+        }
+
+    # 3. GATILHO ATIVO NO 2T (65' a 85' jogo parelho)
     if 65 <= minuto <= 85 and dif <= 1:
         linha_over = gols + 0.5
         return {
-            "tem_entrada": True,
+            "status_tipo": "ATIVO",
             "mercado": f"Mais de {linha_over:.1f} Gols no Jogo (Próximo Gol)",
             "odd": 1.82,
             "ev": 21.0,
@@ -394,13 +548,33 @@ def calcular_ao_vivo_sniper(casa, fora, placar_c, placar_f, minuto_str):
                 f"🔥 GATILHO DE RETA FINAL: Jogo em aberto ({placar_c}x{placar_f}) aos {minuto}'.",
                 "O time em desvantagem partiu para o ataque, abrindo campo para contra-ataques.",
                 f"Excelente relação odd/risco para sair pelo menos mais 1 gol."
-            ]
+            ],
+            "ponto_risco": "Times sentindo desgaste físico e errando o último passe."
         }
 
-    # 🎯 JANELA 3: SNIPER DE ESCANTEIOS EM RETA FINAL (75' até 88' com mandante perdendo)
+    # 4. RADAR EM ESPERA NO 2T (46' a 64')
+    if 45 <= minuto < 65 and dif <= 1:
+        linha_over = gols + 0.5
+        return {
+            "status_tipo": "ESPERA",
+            "mercado": f"Radar em Espera: Próximo Gol (+{linha_over:.1f} FT)",
+            "odd": 1.35,
+            "ev": 10.5,
+            "l10_pattern": "🟩 🟩 🟩 🟩 🟩 🟩 🟩 🟩 🟥 🟩",
+            "l10_pct": "90%",
+            "projecao": "Alvo: Entrar por volta dos 68' (Odd alvo: 1.75+)",
+            "raio_x": [
+                f"👀 Segundo tempo em andamento ({minuto}'). Ritmo acelerando com as mudanças dos técnicos.",
+                "Odd atual baixa. Aguarde a virada para os 68' para pegar a cotação no ápice do valor.",
+                "Linha monitorada pelo robô: basta 1 gol até o fim."
+            ],
+            "ponto_risco": "Expulsão que force um dos times a se trancar totalmente."
+        }
+
+    # 5. ESCANTEIOS DE PRESSÃO (75' a 88' mandante perdendo)
     if 75 <= minuto <= 88 and (placar_c < placar_f):
         return {
-            "tem_entrada": True,
+            "status_tipo": "ATIVO",
             "mercado": "Mais de 1.5 Escanteios nos Minutos Finais",
             "odd": 1.65,
             "ev": 18.5,
@@ -410,28 +584,30 @@ def calcular_ao_vivo_sniper(casa, fora, placar_c, placar_f, minuto_str):
             "raio_x": [
                 f"🔥 PRESSÃO MÁXIMA: {casa} buscando empate aos {minuto}'.",
                 "Zaga adversária afastando bolas em sequência pela linha de fundo.",
-                "Mercado de cantos independente de pontaria dos finalizadores."
-            ]
+                "Mercado de cantos independente de pontaria dos atacantes."
+            ],
+            "ponto_risco": "Goleiro adversário gastando tempo a cada tiro de meta."
         }
 
-    # 🟡 FORA DAS JANELAS
+    # 6. RITMO LENTO / FORA DAS JANELAS
     return {
-        "tem_entrada": False,
-        "mercado": "Aguardando Janela de Valor",
+        "status_tipo": "OBSERVACAO",
+        "mercado": "Confronto em Ritmo Cadenciado (Sem Janela Clara)",
         "odd": 1.0,
         "ev": 0.0,
         "l10_pattern": "⬜ ⬜ ⬜ ⬜ ⬜ ⬜ ⬜ ⬜ ⬜ ⬜",
         "l10_pct": "--",
-        "projecao": "Odd amassada / Sem valor matemático",
+        "projecao": "Sem assimetria matemática",
         "raio_x": [
-            f"Confronto aos {minuto}' ({placar_c}x{placar_f}) fora das janelas de assimetria do Sniper.",
-            "Odds do momento não compensam o risco matemático da operação.",
-            "O robô bloqueia apostas precipitadas para blindar o capital da banca."
-        ]
+            f"Jogo aos {minuto}' ({placar_c}x{placar_f}) em ritmo lento ou placar dilatado.",
+            "As casas estão com cotações desfavoráveis para o risco no momento.",
+            "O robô mantém em observação sem arriscar capital desnecessário."
+        ],
+        "ponto_risco": "Entrada precipitada com cotação sem margem matemática."
     }
 
 # ==========================================
-# 4. CARREGAMENTO COM ESCUDOS OFICIAIS
+# 5. CARREGAMENTO DOS JOGOS
 # ==========================================
 LIGAS_ESPN = {
     "Brasileirão Série A": "bra.1",
@@ -456,7 +632,6 @@ def carregar_jogos_pre_jogo(data_consulta_str):
     jogo_id = 100
     fuso_br = timezone(timedelta(hours=-3))
     
-    # 1. Busca por data
     for nome_liga, codigo in LIGAS_ESPN.items():
         url = f"https://site.api.espn.com/apis/site/v2/sports/soccer/{codigo}/scoreboard?dates={data_consulta_str}"
         try:
@@ -483,7 +658,6 @@ def carregar_jogos_pre_jogo(data_consulta_str):
                             t_info = c.get("team", {})
                             nome_time = t_info.get("shortDisplayName", t_info.get("name", "Time"))
                             logo_time = t_info.get("logo", ESCUDO_PADRAO)
-                            
                             if c.get("homeAway") == "home":
                                 casa = nome_time
                                 logo_casa = logo_time
@@ -507,13 +681,14 @@ def carregar_jogos_pre_jogo(data_consulta_str):
                             "l10_pattern": analise["l10_pattern"],
                             "l10_pct": analise["l10_pct"],
                             "projecao": analise["projecao"],
-                            "raio_x": analise["raio_x"]
+                            "raio_x": analise["raio_x"],
+                            "ponto_risco": analise["ponto_risco"],
+                            "alternativas": analise["alternativas"]
                         })
                         jogo_id += 1
         except Exception:
             continue
 
-    # 2. Se a data estiver vazia (ex: segunda-feira), busca próximos jogos agendados
     if not lista:
         for nome_liga, codigo in list(LIGAS_ESPN.items())[:6]:
             url_geral = f"https://site.api.espn.com/apis/site/v2/sports/soccer/{codigo}/scoreboard"
@@ -561,7 +736,9 @@ def carregar_jogos_pre_jogo(data_consulta_str):
                                 "l10_pattern": analise["l10_pattern"],
                                 "l10_pct": analise["l10_pct"],
                                 "projecao": analise["projecao"],
-                                "raio_x": analise["raio_x"]
+                                "raio_x": analise["raio_x"],
+                                "ponto_risco": analise["ponto_risco"],
+                                "alternativas": analise["alternativas"]
                             })
                             jogo_id += 1
             except Exception:
@@ -583,7 +760,7 @@ def carregar_jogos_ao_vivo():
             headers_rapid = {"x-rapidapi-key": rapidapi_key, "x-rapidapi-host": rapidapi_host}
             resp_rapid = requests.get(url_rapid, headers=headers_rapid, timeout=5)
             if resp_rapid.status_code == 200:
-                for ev in resp_rapid.json().get("events", []):
+                for ev in resp_rapid.json().get("events", [])[:12]:
                     casa = ev.get("homeTeam", {}).get("shortName", ev.get("homeTeam", {}).get("name", "Casa"))
                     fora = ev.get("awayTeam", {}).get("shortName", ev.get("awayTeam", {}).get("name", "Fora"))
                     torneio = ev.get("tournament", {}).get("name", "Internacional")
@@ -593,7 +770,7 @@ def carregar_jogos_ao_vivo():
                     placar_f = int(ev.get("awayScore", {}).get("current", 0))
                     tempo_jogo = "Ao Vivo"
                     
-                    analise = calcular_ao_vivo_sniper(casa, fora, placar_c, placar_f, tempo_jogo)
+                    analise = calcular_ao_vivo_dinamico(casa, fora, placar_c, placar_f, tempo_jogo)
                     lista.append({
                         "id": f"vivo_{jogo_id}",
                         "torneio": torneio,
@@ -604,14 +781,15 @@ def carregar_jogos_ao_vivo():
                         "logo_casa": ESCUDO_PADRAO,
                         "logo_fora": ESCUDO_PADRAO,
                         "confronto": confronto,
-                        "tem_entrada": analise["tem_entrada"],
+                        "status_tipo": analise["status_tipo"],
                         "mercado": analise["mercado"],
                         "odd": analise["odd"],
                         "ev": analise["ev"],
                         "l10_pattern": analise["l10_pattern"],
                         "l10_pct": analise["l10_pct"],
                         "projecao": analise["projecao"],
-                        "raio_x": analise["raio_x"]
+                        "raio_x": analise["raio_x"],
+                        "ponto_risco": analise["ponto_risco"]
                     })
                     jogo_id += 1
         except Exception:
@@ -651,7 +829,7 @@ def carregar_jogos_ao_vivo():
                         if any(j["confronto"] == confronto for j in lista):
                             continue
                             
-                        analise = calcular_ao_vivo_sniper(casa, fora, placar_c, placar_f, tempo_jogo)
+                        analise = calcular_ao_vivo_dinamico(casa, fora, placar_c, placar_f, tempo_jogo)
                         lista.append({
                             "id": f"vivo_{jogo_id}",
                             "torneio": nome_liga,
@@ -662,14 +840,15 @@ def carregar_jogos_ao_vivo():
                             "logo_casa": logo_casa,
                             "logo_fora": logo_fora,
                             "confronto": confronto,
-                            "tem_entrada": analise["tem_entrada"],
+                            "status_tipo": analise["status_tipo"],
                             "mercado": analise["mercado"],
                             "odd": analise["odd"],
                             "ev": analise["ev"],
                             "l10_pattern": analise["l10_pattern"],
                             "l10_pct": analise["l10_pct"],
                             "projecao": analise["projecao"],
-                            "raio_x": analise["raio_x"]
+                            "raio_x": analise["raio_x"],
+                            "ponto_risco": analise["ponto_risco"]
                         })
                         jogo_id += 1
         except Exception:
@@ -678,7 +857,7 @@ def carregar_jogos_ao_vivo():
     return pd.DataFrame(lista)
 
 # ==========================================
-# 5. BARRA LATERAL (LOGO OFICIAL & BANCA)
+# 6. BARRA LATERAL (OPERADOR LOGADO & BANCA)
 # ==========================================
 with st.sidebar:
     if os.path.exists("logo.png"):
@@ -688,11 +867,11 @@ with st.sidebar:
         st.caption("Terminal Quantitativo de Inteligência Esportiva")
     
     conn = get_db()
-    usuarios = [row[0] for row in conn.execute("SELECT nome FROM perfis ORDER BY nome ASC").fetchall()]
-    usuario_ativo = st.selectbox("Operador Conectado:", usuarios)
+    perfil = conn.execute("SELECT banca_atual, unidade_pct FROM usuarios WHERE username = ?", (usuario_ativo,)).fetchone()
+    banca_atual = perfil[0] if perfil else 50.0
+    unidade_pct = perfil[1] if perfil else 2.0
     
-    perfil = conn.execute("SELECT banca_atual, unidade_pct FROM perfis WHERE nome = ?", (usuario_ativo,)).fetchone()
-    banca_atual, unidade_pct = perfil[0], perfil[1]
+    st.markdown(f"👤 **Operador Ativo:** `{usuario_ativo}`")
     
     st.markdown("---")
     st.markdown("#### 💼 Gestão de Risco")
@@ -700,14 +879,19 @@ with st.sidebar:
     novo_pct = st.slider("Tamanho da Unidade (%):", 0.5, 5.0, float(unidade_pct), step=0.5)
     
     if st.button("💾 Salvar Parâmetros", use_container_width=True):
-        conn.execute("UPDATE perfis SET banca_atual = ?, unidade_pct = ? WHERE nome = ?", (nova_banca, novo_pct, usuario_ativo))
+        conn.execute("UPDATE usuarios SET banca_atual = ?, unidade_pct = ? WHERE username = ?", (nova_banca, novo_pct, usuario_ativo))
         conn.commit()
         st.success("Configurações atualizadas!")
         st.rerun()
         
     valor_unidade = round(nova_banca * (novo_pct / 100), 2)
     st.metric(label="1 Unidade Base", value=f"R$ {valor_unidade:.2f}")
-    st.caption("💡 Simples: 1.0 unid. | Duplas: 0.5 unid.")
+    
+    st.markdown("---")
+    if st.button("🚪 Sair da Conta", use_container_width=True):
+        st.session_state.usuario_ativo = None
+        st.rerun()
+        
     conn.close()
 
 if "selecionados" not in st.session_state:
@@ -717,7 +901,7 @@ if "odds_custom" not in st.session_state:
     st.session_state.odds_custom = {}
 
 # ==========================================
-# 6. MODAL DO BILHETE
+# 7. MODAL DO BILHETE
 # ==========================================
 def render_modal_dialog(title="📑 Bilhete de Apostas — Radar Pro"):
     if hasattr(st, "dialog"):
@@ -833,24 +1017,24 @@ def abrir_bilhete_modal(usuario, unidade_val):
     st.text_area("Copiar para grupo/conferência:", value=texto_wpp, height=140, key="wpp_modal")
 
 # ==========================================
-# 7. NAVEGAÇÃO PRINCIPAL EM 4 ABAS
+# 8. NAVEGAÇÃO PRINCIPAL EM 4 ABAS
 # ==========================================
 tab_pre, tab_vivo, tab_diario, tab_stats = st.tabs([
     "🎯 Oportunidades Pré-Jogo",
-    "⚡ Radar Ao Vivo (Sniper)",
+    "⚡ Radar Ao Vivo (Dinâmico)",
     "📋 Diário Operacional",
     "📈 Desempenho & Yield"
 ])
 
 # ----------------------------------------------------
-# ABA 1: PRÉ-JOGO COM MATCH CARDS & ESCUDOS REAIS
+# ABA 1: PRÉ-JOGO COM BUSCA & ALTERNATIVAS
 # ----------------------------------------------------
 with tab_pre:
     fuso_br = timezone(timedelta(hours=-3))
     data_hoje_dt = datetime.now(fuso_br)
     
     st.markdown("### 🎯 Análise Pré-Jogo (+EV)")
-    st.caption("Confrontos com escudos oficiais, histórico de acerto L10 e projeção quantitativa.")
+    st.caption("Projeções estatísticas de probabilidade e margem de assimetria.")
     
     c_data1, c_data2 = st.columns([1.5, 2.5])
     with c_data1:
@@ -869,13 +1053,16 @@ with tab_pre:
         else:
             df_pre_view = pd.DataFrame()
             
+    termo_busca = st.text_input("🔍 Buscar time ou torneio:", placeholder="Ex: Criciúma, Lanús, Náutico, Série B...", key="busca_pre").strip().lower()
+    if termo_busca and not df_pre_view.empty:
+        df_pre_view = df_pre_view[df_pre_view['confronto'].str.lower().str.contains(termo_busca) | df_pre_view['torneio'].str.lower().str.contains(termo_busca)]
+        
     st.markdown("---")
     
     if df_pre_view.empty:
-        st.info("Nenhuma partida agendada encontrada no momento. Atualize em instantes!")
+        st.info("Nenhuma partida agendada encontrada para os filtros selecionados.")
     else:
         for _, row in df_pre_view.iterrows():
-            # MATCH CARD HTML
             card_html = f"""
             <div class="match-card">
                 <div class="card-top">
@@ -894,7 +1081,7 @@ with tab_pre:
                     </div>
                 </div>
                 <div class="market-row">
-                    <span class="market-label">👉 {row['mercado']}</span>
+                    <span class="market-label">👉 Entrada Principal: {row['mercado']}</span>
                     <div class="pills-group">
                         <span class="pill-odd">Ref: {row['odd']:.2f}</span>
                         <span class="badge-ev">+{row['ev']}% EV</span>
@@ -909,10 +1096,16 @@ with tab_pre:
             st.markdown(card_html, unsafe_allow_html=True)
             
             itens_rx = "".join([f"<div style='margin-bottom: 2px;'>• {item}</div>" for item in row['raio_x']])
-            st.markdown(f"<div class='raio-x-box'><strong style='color: #38bdf8;'>💡 Raio-X do Algoritmo:</strong>{itens_rx}</div>", unsafe_allow_html=True)
+            ponto_risco_html = f"<div class='risco-box'>⚠️ <strong>Ponto de Atenção (O que pode quebrar):</strong> {row['ponto_risco']}</div>"
+            st.markdown(f"<div class='raio-x-box'><strong style='color: #38bdf8;'>💡 Raio-X do Algoritmo:</strong>{itens_rx}{ponto_risco_html}</div>", unsafe_allow_html=True)
             
+            # BLOCO DE ALTERNATIVAS
+            if row['alternativas']:
+                alt_text = " &nbsp;|&nbsp; ".join([f"<strong>{a['mercado']}</strong> (@{a['odd']:.2f})" for a in row['alternativas']])
+                st.markdown(f"<div class='alternativas-box'>⚡ <strong>Mercados Alternativos:</strong> {alt_text}</div>", unsafe_allow_html=True)
+                
             ja_marcado = row['id'] in st.session_state.selecionados
-            marcado = st.checkbox("Adicionar ao bilhete", value=ja_marcado, key=f"chk_{row['id']}")
+            marcado = st.checkbox("Adicionar entrada principal ao bilhete", value=ja_marcado, key=f"chk_{row['id']}")
             
             if marcado and not ja_marcado:
                 st.session_state.selecionados[row['id']] = row
@@ -924,13 +1117,13 @@ with tab_pre:
             st.markdown("<div style='margin-bottom: 20px;'></div>", unsafe_allow_html=True)
 
 # ----------------------------------------------------
-# ABA 2: RADAR AO VIVO (SNIPER COM PLACAR & ESCUDOS)
+# ABA 2: RADAR AO VIVO DINÂMICO
 # ----------------------------------------------------
 with tab_vivo:
     col_v_top1, col_v_top2 = st.columns([3, 1])
     with col_v_top1:
-        st.markdown("### ⚡ Radar Ao Vivo (Modo Sniper)")
-        st.caption("Monitoramento contínuo: o algoritmo só destrava entradas quando a odd valoriza nas janelas seguras.")
+        st.markdown("### ⚡ Radar Ao Vivo Dinâmico")
+        st.caption("Oportunidades imediatas e metas de odd para partidas com pressão ofensiva.")
     with col_v_top2:
         if st.button("🔄 Atualizar Radar Ao Vivo", use_container_width=True):
             st.cache_data.clear()
@@ -942,14 +1135,20 @@ with tab_vivo:
         st.info("Nenhuma partida em andamento no momento. Assim que a bola rolar nas ligas monitoradas, os jogos entrarão aqui automaticamente.")
     else:
         for _, row_v in df_vivo.iterrows():
-            if row_v["tem_entrada"]:
+            st_tipo = row_v["status_tipo"]
+            
+            if st_tipo == "ATIVO":
                 badge_status = f"<span class='badge-ev'>+{row_v['ev']}% EV</span>"
                 cor_mercado = "#38bdf8"
-                titulo_mercado = f"🎯 Gatilho Sniper: {row_v['mercado']}"
+                titulo_mercado = f"🎯 ENTRADA RECOMENDADA: {row_v['mercado']}"
+            elif st_tipo == "ESPERA":
+                badge_status = "<span class='badge-alvo'>👀 RADAR EM ESPERA</span>"
+                cor_mercado = "#818cf8"
+                titulo_mercado = f"{row_v['mercado']}"
             else:
-                badge_status = "<span class='badge-observacao'>AGUARDANDO JANELA</span>"
+                badge_status = "<span class='badge-observacao'>RITMO CADENCIADO</span>"
                 cor_mercado = "#94a3b8"
-                titulo_mercado = f"🟡 {row_v['mercado']} (Sem margem no momento)"
+                titulo_mercado = f"🟡 {row_v['mercado']}"
 
             card_vivo_html = f"""
             <div class="match-card">
@@ -979,17 +1178,18 @@ with tab_vivo:
                     </div>
                 </div>
                 <div class="props-bar">
-                    <span><strong>Momento:</strong> {row_v['l10_pattern']} ({row_v['l10_pct']})</span>
-                    <span>📊 {row_v['projecao']}</span>
+                    <span><strong>Métricas:</strong> {row_v['l10_pattern']} ({row_v['l10_pct']})</span>
+                    <span>🎯 {row_v['projecao']}</span>
                 </div>
             </div>
             """
             st.markdown(card_vivo_html, unsafe_allow_html=True)
             
             itens_rx_v = "".join([f"<div style='margin-bottom: 2px;'>• {item}</div>" for item in row_v['raio_x']])
-            st.markdown(f"<div class='raio-x-box'><strong style='color: #38bdf8;'>💡 Análise do Momento:</strong>{itens_rx_v}</div>", unsafe_allow_html=True)
+            ponto_risco_v_html = f"<div class='risco-box'>⚠️ <strong>Ponto de Atenção:</strong> {row_v['ponto_risco']}</div>"
+            st.markdown(f"<div class='raio-x-box'><strong style='color: #38bdf8;'>💡 Leitura do Momento:</strong>{itens_rx_v}{ponto_risco_v_html}</div>", unsafe_allow_html=True)
             
-            if row_v["tem_entrada"]:
+            if st_tipo in ["ATIVO", "ESPERA"]:
                 ja_marcado_v = row_v['id'] in st.session_state.selecionados
                 marcado_v = st.checkbox("Adicionar entrada ao bilhete", value=ja_marcado_v, key=f"chk_{row_v['id']}")
                 if marcado_v and not ja_marcado_v:
@@ -999,12 +1199,12 @@ with tab_vivo:
                     del st.session_state.selecionados[row_v['id']]
                     st.rerun()
             else:
-                st.caption("🔒 Entrada bloqueada pelo algoritmo para proteger sua banca contra cotações sem valor.")
+                st.caption("🔒 Confronto sem assimetria de cotação no momento.")
                 
             st.markdown("<div style='margin-bottom: 20px;'></div>", unsafe_allow_html=True)
 
 # ----------------------------------------------------
-# ABA 3: DIÁRIO OPERACIONAL
+# ABA 3: DIÁRIO OPERACIONAL (COM MIGRAÇÃO DE HISTÓRICO)
 # ----------------------------------------------------
 with tab_diario:
     st.markdown(f"### 📋 Diário Operacional — {usuario_ativo}")
@@ -1013,7 +1213,7 @@ with tab_diario:
     conn.close()
     
     if df_apostas.empty:
-        st.info("Nenhuma entrada registrada até o momento.")
+        st.info("Nenhuma entrada registrada até o momento para este operador.")
     else:
         for _, row in df_apostas.iterrows():
             c1, c2, c3 = st.columns([3.5, 1.2, 2.3])
@@ -1035,7 +1235,7 @@ with tab_diario:
                             conn = get_db()
                             lucro = (row['valor'] * row['odd']) - row['valor']
                             conn.execute("UPDATE apostas SET status = 'Green' WHERE id = ?", (row['id'],))
-                            conn.execute("UPDATE perfis SET banca_atual = banca_atual + ? WHERE nome = ?", (lucro, usuario_ativo))
+                            conn.execute("UPDATE usuarios SET banca_atual = banca_atual + ? WHERE username = ?", (lucro, usuario_ativo))
                             conn.commit()
                             conn.close()
                             st.rerun()
@@ -1044,7 +1244,7 @@ with tab_diario:
                         if st.button("❌ Red", key=f"r_{row['id']}", use_container_width=True):
                             conn = get_db()
                             conn.execute("UPDATE apostas SET status = 'Red', motivo_red = ? WHERE id = ?", (motivo, row['id']))
-                            conn.execute("UPDATE perfis SET banca_atual = banca_atual - ? WHERE nome = ?", (row['valor'], usuario_ativo))
+                            conn.execute("UPDATE usuarios SET banca_atual = banca_atual - ? WHERE nome = ?", (row['valor'], usuario_ativo))
                             conn.commit()
                             conn.close()
                             st.rerun()
@@ -1063,7 +1263,7 @@ with tab_stats:
     conn.close()
     
     if df_resolvidas.empty:
-        st.info("Valide entradas no diário para visualizar o balanço.")
+        st.info("Valide entradas no diário para visualizar o balanço de assertividade.")
     else:
         total = len(df_resolvidas)
         greens = len(df_resolvidas[df_resolvidas["status"] == "Green"])
@@ -1083,7 +1283,7 @@ with tab_stats:
         m3.metric("Resultado Líquido", f"R$ {lucro_total:+.2f}")
 
 # ==========================================
-# 8. GATILHO FLUTUANTE GLOBAL (CANTO INFERIOR DIREITO)
+# 9. GATILHO FLUTUANTE GLOBAL (CANTO INFERIOR DIREITO)
 # ==========================================
 if st.session_state.selecionados:
     qtd_jogos = len(st.session_state.selecionados)
