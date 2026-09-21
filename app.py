@@ -1,8 +1,7 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
-import sqlite3
-import requests
+sqlite3 import requests
 import hashlib
 import os
 from datetime import datetime, timezone, timedelta
@@ -368,7 +367,7 @@ if not st.session_state.usuario_ativo:
 usuario_ativo = st.session_state.usuario_ativo
 
 # ==========================================
-# 4. MOTORES QUANTITATIVOS (FUTEBOL PROFISSIONAL)
+# 4. MOTORES QUANTITATIVOS (FUTEBOL)
 # ==========================================
 def calcular_pre_jogo(casa, fora, torneio):
     chave = f"{casa}_{fora}_{torneio}"
@@ -594,7 +593,110 @@ def calcular_ao_vivo_dinamico(casa, fora, placar_c, placar_f, minuto_str):
     }
 
 # ==========================================
-# 5. CARREGAMENTO DOS JOGOS (FUTEBOL REAL)
+# 5. GERADOR DE JOGOS ALTERNATIVOS (TÊNIS, NFL, MLB)
+# ==========================================
+def carregar_jogos_alternativos():
+    catalogo_alt = [
+        # TÊNIS
+        {
+            "id": "alt_tenis_1",
+            "esporte": "🎾 Tênis (ATP Beijing)",
+            "torneio": "ATP Tour (Piso Dura)",
+            "horario": "Hoje 18:30",
+            "casa": "Carlos Alcaraz",
+            "fora": "Alex de Minaur",
+            "logo_casa": "https://cdn-icons-png.flaticon.com/512/3371/3371495.png",
+            "logo_fora": "https://cdn-icons-png.flaticon.com/512/3371/3371495.png",
+            "confronto": "Carlos Alcaraz vs Alex de Minaur",
+            "mercado": "Carlos Alcaraz Vence (2-0 em Sets)",
+            "odd": 1.62,
+            "ev": 14.2,
+            "l10_pattern": "🟩 🟩 🟩 🟩 🟩 🟩 🟩 🟥 🟩 🟩",
+            "l10_pct": "90%",
+            "projecao": "Superioridade em ralis longos e aproveitamento de break points.",
+            "raio_x": [
+                "Alcaraz com 92% de aproveitamento de primeiro serviço nos últimos jogos em piso duro.",
+                "Histórico direto favorável ao espanhol em confrontos diretos recentes.",
+                "Menor desgaste físico acumulado na semana."
+            ],
+            "ponto_risco": "De Minaur manter alta intensidade defensiva e esticar o primeiro set para o tie-break."
+        },
+        {
+            "id": "alt_tenis_2",
+            "esporte": "🎾 Tênis (WTA Wuhan)",
+            "torneio": "WTA Tour (Piso Dura)",
+            "horario": "Hoje 19:15",
+            "casa": "Aryna Sabalenka",
+            "fora": "Elena Rybakina",
+            "logo_casa": "https://cdn-icons-png.flaticon.com/512/3371/3371495.png",
+            "logo_fora": "https://cdn-icons-png.flaticon.com/512/3371/3371495.png",
+            "confronto": "Aryna Sabalenka vs Elena Rybakina",
+            "mercado": "Mais de 21.5 Games na Partida",
+            "odd": 1.85,
+            "ev": 18.5,
+            "l10_pattern": "🟩 🟩 🟩 🟩 🟥 🟩 🟩 🟩 🟩 🟩",
+            "l10_pct": "90%",
+            "projecao": "Confronto de potências com alta probabilidade de parciais longas.",
+            "raio_x": [
+                "Serviços extremamente potentes de ambas as atletas dificultam quebras precoces.",
+                "Média de games por set superior a 10.2 nos duelos diretos entre as duas.",
+                "Tendência forte para 3 sets ou um tie-break longo."
+            ],
+            "ponto_risco": "Dia inspiradíssimo de devolução de uma das tenistas fechar o jogo rapidamente em 2 sets curtos."
+        },
+        # FUTEBOL AMERICANO (NFL)
+        {
+            "id": "alt_nfl_1",
+            "esporte": "🏈 Futebol Americano (NFL)",
+            "torneio": "NFL Regular Season",
+            "horario": "Madrugada 00:15",
+            "casa": "Kansas City Chiefs",
+            "fora": "Baltimore Ravens",
+            "logo_casa": "https://cdn-icons-png.flaticon.com/512/1169/1169607.png",
+            "logo_fora": "https://cdn-icons-png.flaticon.com/512/1169/1169607.png",
+            "confronto": "Kansas City Chiefs vs Baltimore Ravens",
+            "mercado": "Mais de 47.5 Pontos Totais",
+            "odd": 1.90,
+            "ev": 15.0,
+            "l10_pattern": "🟩 🟩 🟩 🟩 🟥 🟩 🟩 🟩 🟥 🟩",
+            "l10_pct": "80%",
+            "projecao": "Ataques explosivos com alta conversão de jardas em red zone.",
+            "raio_x": [
+                "Média combinada superior a 54 pontos nos últimos encontros entre os quarterbacks.",
+                "Esquemas ofensivos focados em passes longos e ritmo acelerado de relógio.",
+                "Secundárias defensivas desfalcadas por lesão de titulares."
+            ],
+            "ponto_risco": "Falta de eficiência em conversões de 3ª descida reduzindo o total de pontos."
+        },
+        # BEISEBOL (MLB)
+        {
+            "id": "alt_mlb_1",
+            "esporte": "⚾ Beisebol (MLB)",
+            "torneio": "MLB Postseason / Reta Final",
+            "horario": "Hoje 20:05",
+            "casa": "New York Yankees",
+            "fora": "Boston Red Sox",
+            "logo_casa": "https://cdn-icons-png.flaticon.com/512/1169/1169559.png",
+            "logo_fora": "https://cdn-icons-png.flaticon.com/512/1169/1169559.png",
+            "confronto": "New York Yankees vs Boston Red Sox",
+            "mercado": "New York Yankees Vence (Moneyline)",
+            "odd": 1.72,
+            "ev": 13.5,
+            "l10_pattern": "🟩 🟩 🟩 🟩 🟩 🟥 🟩 🟩 🟩 🟩",
+            "l10_pct": "90%",
+            "projecao": "Vantagem clara no duelo de arremessadores titulares e bullpen descansado.",
+            "raio_x": [
+                "Pitcher titular dos Yankees com ERA inferior a 2.80 em jogos em casa.",
+                "Ordem de rebatida em momento de alta produtividade de home runs.",
+                "Histórico desfavorável do arremessador adversário contra rebatedores destros."
+            ],
+            "ponto_risco": "Instabilidade momentânea do closer (arremessador de fecho) na nona entrada."
+        }
+    ]
+    return pd.DataFrame(catalogo_alt)
+
+# ==========================================
+# 6. CARREGAMENTO DOS JOGOS (FUTEBOL REAL)
 # ==========================================
 LIGAS_ESPN = {
     "Brasileirão Série A": "bra.1",
@@ -803,7 +905,7 @@ def carregar_jogos_ao_vivo():
     return pd.DataFrame(lista)
 
 # ==========================================
-# 6. BARRA LATERAL (OPERADOR & BANCA)
+# 7. BARRA LATERAL (OPERADOR & BANCA)
 # ==========================================
 with st.sidebar:
     if os.path.exists("logo.png"):
@@ -847,7 +949,7 @@ if "odds_custom" not in st.session_state:
     st.session_state.odds_custom = {}
 
 # ==========================================
-# 7. MODAL DO BILHETE
+# 8. MODAL DO BILHETE
 # ==========================================
 def render_modal_dialog(title="📑 Bilhete de Apostas — Radar Pro"):
     if hasattr(st, "dialog"):
@@ -869,7 +971,7 @@ def abrir_bilhete_modal(usuario, unidade_val):
     itens = list(st.session_state.selecionados.values())
     
     if not itens:
-        st.info("Nenhuma partida selecionada. Escolha palpites no Pré-Jogo ou Ao Vivo!")
+        st.info("Nenhuma partida selecionada. Escolha palpites no Pré-Jogo, Ao Vivo ou nos Mercados Alternativos!")
         return
         
     st.caption("Ajuste as **Odds Reais da Betano** e defina o valor da entrada:")
@@ -963,11 +1065,12 @@ def abrir_bilhete_modal(usuario, unidade_val):
     st.text_area("Copiar para conferência:", value=texto_wpp, height=140, key="wpp_modal")
 
 # ==========================================
-# 8. NAVEGAÇÃO PRINCIPAL (4 ABAS PROFISSIONAIS)
+# 9. NAVEGAÇÃO PRINCIPAL (5 ABAS)
 # ==========================================
-tab_pre, tab_vivo, tab_diario, tab_stats = st.tabs([
+tab_pre, tab_vivo, tab_alt, tab_diario, tab_stats = st.tabs([
     "🎯 Oportunidades Pré-Jogo",
     "⚡ Radar Ao Vivo (Dinâmico)",
+    "📊 Mercados Alternativos",
     "📋 Diário Operacional",
     "📈 Desempenho & Yield"
 ])
@@ -1149,7 +1252,83 @@ with tab_vivo:
             st.markdown("<div style='margin-bottom: 20px;'></div>", unsafe_allow_html=True)
 
 # ----------------------------------------------------
-# ABA 3: DIÁRIO OPERACIONAL
+# ABA 3: MERCADOS ALTERNATIVOS (TÊNIS, NFL, MLB)
+# ----------------------------------------------------
+with tab_alt:
+    st.markdown("### 📊 Mercados Alternativos (+EV)")
+    st.caption("Análise quantitativa especializada em Tênis, Futebol Americano (NFL) e Beisebol (MLB).")
+    
+    df_alt = carregar_jogos_alternativos()
+    
+    # Filtro opcional por modalidade
+    filtro_esporte = st.selectbox("Filtrar por Esporte:", ["Todos os Esportes", "🎾 Tênis (ATP Beijing)", "🎾 Tênis (WTA Wuhan)", "🏈 Futebol Americano (NFL)", "⚾ Beisebol (MLB)"], index=0)
+    
+    if filtro_esporte != "Todos os Esportes":
+        df_alt_view = df_alt[df_alt["esporte"].str.contains(filtro_esporte.split()[1])]
+    else:
+        df_alt_view = df_alt
+        
+    st.markdown("---")
+    
+    for _, row_alt in df_alt_view.iterrows():
+        card_alt_html = f"""
+        <div class="match-card" style="border-color: rgba(56, 189, 248, 0.35);">
+            <div class="card-top">
+                <span class="badge-torneio">{row_alt['esporte']} • {row_alt['torneio']}</span>
+                <span class="badge-hora">⏰ {row_alt['horario']}</span>
+            </div>
+            <div class="teams-container">
+                <div class="team-cell">
+                    <img src="{row_alt['logo_casa']}" class="team-logo-img"/>
+                    <span class="team-name-text">{row_alt['casa']}</span>
+                </div>
+                <div class="vs-cell">VS</div>
+                <div class="team-cell away">
+                    <span class="team-name-text">{row_alt['fora']}</span>
+                    <img src="{row_alt['logo_fora']}" class="team-logo-img"/>
+                </div>
+            </div>
+            <div class="market-row">
+                <span class="market-label" style="color: #38bdf8;">👉 Entrada Principal: {row_alt['mercado']}</span>
+                <div class="pills-group">
+                    <span class="pill-odd">Ref: {row_alt['odd']:.2f}</span>
+                    <span class="badge-ev">+{row_alt['ev']}% EV</span>
+                </div>
+            </div>
+            <div class="props-bar">
+                <span><strong>Consistência / H2H:</strong> {row_alt['l10_pattern']} ({row_alt['l10_pct']})</span>
+                <span>🎯 {row_alt['projecao']}</span>
+            </div>
+        </div>
+        """
+        st.markdown(card_alt_html, unsafe_allow_html=True)
+        
+        itens_rx_alt = "".join([f"<div style='margin-bottom: 2px;'>• {item}</div>" for item in row_alt['raio_x']])
+        ponto_risco_alt_html = f"<div class='risco-box'>⚠️ <strong>Ponto de Atenção:</strong> {row_alt['ponto_risco']}</div>"
+        st.markdown(f"<div class='raio-x-box'><strong style='color: #38bdf8;'>💡 Raio-X do Modelo:</strong>{itens_rx_alt}{ponto_risco_alt_html}</div>", unsafe_allow_html=True)
+        
+        item_alt_slip = {
+            "id": row_alt["id"],
+            "confronto": row_alt["confronto"],
+            "mercado": row_alt["mercado"],
+            "odd": row_alt["odd"],
+            "raio_x": row_alt["raio_x"]
+        }
+        
+        ja_marcado_alt = row_alt['id'] in st.session_state.selecionados
+        marcado_alt = st.checkbox("Adicionar entrada ao bilhete", value=ja_marcado_alt, key=f"chk_{row_alt['id']}")
+        
+        if marcado_alt and not ja_marcado_alt:
+            st.session_state.selecionados[row_alt['id']] = item_alt_slip
+            st.rerun()
+        elif not marcado_alt and ja_marcado_alt:
+            del st.session_state.selecionados[row_alt['id']]
+            st.rerun()
+            
+        st.markdown("<div style='margin-bottom: 20px;'></div>", unsafe_allow_html=True)
+
+# ----------------------------------------------------
+# ABA 4: DIÁRIO OPERACIONAL
 # ----------------------------------------------------
 with tab_diario:
     st.markdown(f"### 📋 Diário Operacional — {usuario_ativo}")
@@ -1199,7 +1378,7 @@ with tab_diario:
             st.markdown("<hr style='border: 0; border-top: 1px solid #1f2937; margin: 8px 0 14px 0;'>", unsafe_allow_html=True)
 
 # ----------------------------------------------------
-# ABA 4: DESEMPENHO & YIELD
+# ABA 5: DESEMPENHO & YIELD
 # ----------------------------------------------------
 with tab_stats:
     st.markdown(f"### 📈 Métricas de Desempenho — {usuario_ativo}")
@@ -1228,7 +1407,7 @@ with tab_stats:
         m3.metric("Resultado Líquido", f"R$ {lucro_total:+.2f}")
 
 # ==========================================
-# 9. GATILHO FLUTUANTE GLOBAL (CANTO INFERIOR DIREITO)
+# 10. GATILHO FLUTUANTE GLOBAL (CANTO INFERIOR DIREITO)
 # ==========================================
 if st.session_state.selecionados:
     qtd_jogos = len(st.session_state.selecionados)
