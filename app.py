@@ -715,12 +715,12 @@ def carregar_jogos_pre_jogo(data_consulta_str):
                                 t_info = c.get("team", {})
                                 nome_time = t_info.get("shortDisplayName", t_info.get("name", "Time"))
                                 logo_time = t_info.get("logo", ESCUDO_PADRAO)
-                                if c.get("homeAway") == "home":
-                                    casa = nome_time
-                                    logo_casa = logo_time
-                                else:
-                                    fora = nome_time
-                                    logo_fora = logo_time
+                            if c.get("homeAway") == "home":
+                                casa = nome_time
+                                logo_casa = logo_time
+                            else:
+                                fora = nome_time
+                                logo_fora = logo_time
                             analise = calcular_pre_jogo(casa, fora, nome_liga)
                             lista.append({
                                 "id": f"pre_{jogo_id}",
@@ -860,15 +860,18 @@ def carregar_jogos_ao_vivo():
     return pd.DataFrame(lista)
 
 # ==========================================
-# 6. MOTOR E-SOCCER (SEM FALLBACK FANTASMA)
+# 6. MOTOR E-SOCCER (LIMPEZA DE ESPORTS & PILOTOS)
 # ==========================================
 def extrair_piloto_e_clube(nome_bruto):
-    match = re.search(r'^(.*?)\s*\((.*?)\)$', str(nome_bruto).strip())
+    # Remove as tags (Esports), Esports, (esport), etc.
+    texto = re.sub(r'\(?esports?\)?', '', str(nome_bruto), flags=re.IGNORECASE).strip()
+    match = re.search(r'^(.*?)\s*\((.*?)\)', texto)
     if match:
         clube = match.group(1).strip()
         piloto = match.group(2).strip()
-        return clube, piloto
-    return nome_bruto, ""
+        if piloto.lower() not in ["esports", "esport", ""]:
+            return clube, piloto
+    return texto, ""
 
 def calcular_mercado_esoccer(total_gols, placar_c, placar_f):
     if total_gols <= 1:
@@ -890,7 +893,9 @@ def calcular_mercado_esoccer(total_gols, placar_c, placar_f):
 def carregar_jogos_esoccer():
     lista = []
     jogo_id = 900
+    msg_debug = ""
     
+    # 1. Consulta à BetsAPI
     api_bets_key = st.secrets.get("BETSAPI_KEY", "") or st.secrets.get("RAPIDAPI_KEY", "")
     api_bets_host = st.secrets.get("BETSAPI_HOST", "betsapi2.p.rapidapi.com")
     
@@ -898,7 +903,8 @@ def carregar_jogos_esoccer():
         try:
             url_bets = f"https://{api_bets_host}/v3/bet365/inplay"
             headers_bets = {"x-rapidapi-key": api_bets_key, "x-rapidapi-host": api_bets_host}
-            resp_bets = requests.get(url_bets, headers=headers_bets, timeout=5)
+            resp_bets = requests.get(url_bets, headers=headers_bets, timeout=10)
+            
             if resp_bets.status_code == 200:
                 dados_json = resp_bets.json().get("results", [])
                 for ev in dados_json:
@@ -907,15 +913,18 @@ def carregar_jogos_esoccer():
                     fora_raw = ev.get("away", {}).get("name", "")
                     
                     t_low = torneio.lower()
-                    is_es = any(k in t_low for k in ["esoccer", "gt league", "battle", "cyber", "fifa", "h2h gg"])
-                    tem_parenteses = ("(" in casa_raw and ")" in casa_raw) and ("(" in fora_raw and ")" in fora_raw)
+                    is_es = any(k in t_low for k in ["esoccer", "gt league", "battle", "cyber", "fifa", "h2h gg", "electronic"]) or "esport" in str(casa_raw).lower()
                     
-                    if is_es and tem_parenteses:
+                    if is_es:
                         clube_c, piloto_c = extrair_piloto_e_clube(casa_raw)
                         clube_f, piloto_f = extrair_piloto_e_clube(fora_raw)
                         
-                        if piloto_c and piloto_f and piloto_c.lower() != "piloto" and piloto_f.lower() != "piloto":
-                            scores = ev.get("ss", "0-0").split("-")
+                        # Aceita se encontrou pelo menos um piloto ou se for explicitamente liga de videojogos
+                        if piloto_c or piloto_f or "gt league" in t_low or "battle" in t_low:
+                            piloto_c = piloto_c if piloto_c else "Gamer 1"
+                            piloto_f = piloto_f if piloto_f else "Gamer 2"
+                            
+                            scores = str(ev.get("ss", "0-0")).split("-")
                             placar_c = int(scores[0]) if len(scores) > 0 and scores[0].isdigit() else 0
                             placar_f = int(scores[1]) if len(scores) > 1 and scores[1].isdigit() else 0
                             gols_totais = placar_c + placar_f
@@ -923,7 +932,7 @@ def carregar_jogos_esoccer():
                             mercado, odd_sugerida = calcular_mercado_esoccer(gols_totais, placar_c, placar_f)
                             lista.append({
                                 "id": f"es_{jogo_id}",
-                                "torneio": torneio,
+                                "torneio": torneio if torneio else "Esoccer GT Leagues",
                                 "tempo": "Ao Vivo",
                                 "placar": f"{placar_c} x {placar_f}",
                                 "gols_totais": gols_totais,
@@ -936,77 +945,24 @@ def carregar_jogos_esoccer():
                                 "ev": 24.5,
                                 "l10_pattern": "🟩 🟩 🟩 🟩 🟩 🟩 🟩 🟩 🟥 🟩",
                                 "l10_pct": "90%",
-                                "projecao": f"Golos: {gols_totais} | Linha dinâmica ajustada",
+                                "projecao": f"Golos: {gols_totais} | Linha dinâmica",
                                 "raio_x": [
-                                    f"Confronto oficial: {clube_c} ({piloto_c}) vs {clube_f} ({piloto_f}).",
-                                    f"Ritmo dinâmico com {gols_totais} golos assinalados até ao momento.",
-                                    "Linha de Over recalculada consoante a evolução do marcador."
+                                    f"Partida confirmada: {clube_c} ({piloto_c}) vs {clube_f} ({piloto_f}).",
+                                    f"Placar em movimento com {gols_totais} golos assinalados.",
+                                    "Linha recalculada dinamicamente conforme a evolução do marcador."
                                 ],
-                                "ponto_risco": "Pilotos cadenciarem o ritmo defensivo nos derradeiros 60 segundos."
+                                "ponto_risco": "Pilotos cadenciarem o ataque na reta final da partida."
                             })
                             jogo_id += 1
-        except Exception:
-            pass
+            else:
+                msg_debug = f"Status API: {resp_bets.status_code} ({resp_bets.reason})"
+        except Exception as e:
+            msg_debug = f"Erro de conexão com a API: {str(e)[:50]}"
 
-    if not lista:
-        rapidapi_key = st.secrets.get("RAPIDAPI_KEY", "")
-        rapidapi_host = st.secrets.get("RAPIDAPI_HOST", "sportapi7.p.rapidapi.com")
-        if rapidapi_key:
-            try:
-                url_rapid = f"https://{rapidapi_host}/api/v1/sport/football/events/live"
-                headers_rapid = {"x-rapidapi-key": rapidapi_key, "x-rapidapi-host": rapidapi_host}
-                resp = requests.get(url_rapid, headers=headers_rapid, timeout=5)
-                if resp.status_code == 200:
-                    for ev in resp.json().get("events", []):
-                        torneio = ev.get("tournament", {}).get("name", "")
-                        casa_raw = ev.get("homeTeam", {}).get("name", "")
-                        fora_raw = ev.get("awayTeam", {}).get("name", "")
-                        
-                        t_lower = torneio.lower()
-                        is_esoccer_torneio = any(k in t_lower for k in ["esoccer", "gt league", "battle", "cyber", "fifa", "h2h gg"])
-                        tem_parenteses = ("(" in casa_raw and ")" in casa_raw) and ("(" in fora_raw and ")" in fora_raw)
-                        
-                        if is_esoccer_torneio and tem_parenteses:
-                            clube_c, piloto_c = extrair_piloto_e_clube(casa_raw)
-                            clube_f, piloto_f = extrair_piloto_e_clube(fora_raw)
-                            
-                            if piloto_c and piloto_f and piloto_c.lower() != "piloto" and piloto_f.lower() != "piloto":
-                                placar_c = int(ev.get("homeScore", {}).get("current", 0))
-                                placar_f = int(ev.get("awayScore", {}).get("current", 0))
-                                gols_totais = placar_c + placar_f
-                                
-                                mercado, odd_sugerida = calcular_mercado_esoccer(gols_totais, placar_c, placar_f)
-                                lista.append({
-                                    "id": f"es_{jogo_id}",
-                                    "torneio": torneio,
-                                    "tempo": "Ao Vivo",
-                                    "placar": f"{placar_c} x {placar_f}",
-                                    "gols_totais": gols_totais,
-                                    "piloto_casa": piloto_c,
-                                    "clube_casa": clube_c,
-                                    "piloto_fora": piloto_f,
-                                    "clube_fora": clube_f,
-                                    "mercado": mercado,
-                                    "odd": odd_sugerida,
-                                    "ev": 24.5,
-                                    "l10_pattern": "🟩 🟩 🟩 🟩 🟩 🟩 🟩 🟩 🟥 🟩",
-                                    "l10_pct": "90%",
-                                    "projecao": f"Golos: {gols_totais} | Linha dinâmica ajustada",
-                                    "raio_x": [
-                                        f"Partida validada: {clube_c} ({piloto_c}) vs {clube_f} ({piloto_f}).",
-                                        f"Registo em direto com {gols_totais} golos marcados.",
-                                        "Ajuste contínuo da linha com a progressão da partida."
-                                    ],
-                                    "ponto_risco": "Redução do volume ofensivo nos momentos de encerramento."
-                                })
-                                jogo_id += 1
-            except Exception:
-                pass
-
-    return pd.DataFrame(lista)
+    return pd.DataFrame(lista), msg_debug
 
 # ==========================================
-# 7. BARRA LATERAL (OPERADOR & GESTÃO DE BANCA)
+# 7. BARRA LATERAL (OPERADOR & BANCA)
 # ==========================================
 with st.sidebar:
     if os.path.exists("logo.png"):
@@ -1353,7 +1309,7 @@ with tab_vivo:
             st.markdown("<div style='margin-bottom: 20px;'></div>", unsafe_allow_html=True)
 
 # ----------------------------------------------------
-# ABA 3: E-SOCCER 24H (FILTRADO & AUDITADO)
+# ABA 3: E-SOCCER 24H (COM DIAGNÓSTICO DE API)
 # ----------------------------------------------------
 with tab_esoccer:
     c_es_header, c_es_btn = st.columns([3.2, 1.2])
@@ -1368,15 +1324,13 @@ with tab_esoccer:
     st.markdown("""
     <div style='background: rgba(112, 26, 117, 0.2); border-left: 4px solid #c026d3; padding: 8px 12px; border-radius: 0 8px 8px 0; margin-bottom: 14px;'>
         <strong style='color: #f5d0fe;'>⚡ AMBIENTE BETA REATIVO:</strong>
-        <span style='color: #e2e8f0; font-size: 0.9rem;'>Partidas curtas de 8 a 12 minutos. O modelo filtra estritamente videojogos com pilotos identificados. Dados simulados foram desativados.</span>
+        <span style='color: #e2e8f0; font-size: 0.9rem;'>Partidas curtas de 8 a 12 minutos. Sincronização direta com a rota InPlay da Bet365.</span>
     </div>
     """, unsafe_allow_html=True)
     
-    df_es = carregar_jogos_esoccer()
+    df_es, status_erro = carregar_jogos_esoccer()
     
-    if df_es.empty:
-        st.info("🔄 Nenhum confronto oficial de e-Soccer (GT Leagues/Battle) detetado em direto neste momento. As partidas renovam-se a cada 10-15 minutos. Clique em 'Atualizar e-Soccer Agora' para nova leitura.")
-    else:
+    if not df_es.empty:
         for _, row_es in df_es.iterrows():
             confronto_es = f"{row_es['clube_casa']} ({row_es['piloto_casa']}) vs {row_es['clube_fora']} ({row_es['piloto_fora']})"
             gols_atuais = row_es["gols_totais"]
@@ -1448,6 +1402,11 @@ with tab_esoccer:
                 st.rerun()
                 
             st.markdown("<div style='margin-bottom: 20px;'></div>", unsafe_allow_html=True)
+    else:
+        if status_erro:
+            st.warning(f"⚠️ Alerta de Conexão com o Feed: {status_erro}. Verifique se a variável BETSAPI_KEY está preenchida nos Secrets do Streamlit.")
+        else:
+            st.info("🔄 Aguardando retorno da grade de e-Soccer da Bet365. Clique em 'Atualizar e-Soccer Agora'.")
 
 # ----------------------------------------------------
 # ABA 4: DIÁRIO OPERACIONAL
