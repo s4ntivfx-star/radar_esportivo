@@ -860,7 +860,7 @@ def carregar_jogos_ao_vivo():
     return pd.DataFrame(lista)
 
 # ==========================================
-# 6. MOTOR E-SOCCER (TRATAMENTO DE LISTA CONFIRMADO)
+# 6. MOTOR E-SOCCER (COM CACHE DE 60s CONTRA 429)
 # ==========================================
 def extrair_piloto_e_clube(nome_bruto):
     texto = re.sub(r'\(?esports?\)?', '', str(nome_bruto), flags=re.IGNORECASE).strip()
@@ -888,7 +888,7 @@ def calcular_mercado_esoccer(total_gols, placar_c, placar_f):
         
     return f"Mais de {linha:.1f} Gols Totais", odd
 
-@st.cache_data(ttl=20)
+@st.cache_data(ttl=60)
 def carregar_jogos_esoccer():
     lista = []
     jogo_id = 900
@@ -906,7 +906,6 @@ def carregar_jogos_esoccer():
             if resp_bets.status_code == 200:
                 conteudo = resp_bets.json()
                 
-                # Tratamento robusto para listas ou dicionários
                 if isinstance(conteudo, list):
                     dados_json = conteudo
                 elif isinstance(conteudo, dict):
@@ -1323,7 +1322,7 @@ with tab_vivo:
             st.markdown("<div style='margin-bottom: 20px;'></div>", unsafe_allow_html=True)
 
 # ----------------------------------------------------
-# ABA 3: E-SOCCER 24H (COM DIAGNÓSTICO DE API)
+# ABA 3: E-SOCCER 24H (COM CACHE DE 60s)
 # ----------------------------------------------------
 with tab_esoccer:
     c_es_header, c_es_btn = st.columns([3.2, 1.2])
@@ -1338,7 +1337,7 @@ with tab_esoccer:
     st.markdown("""
     <div style='background: rgba(112, 26, 117, 0.2); border-left: 4px solid #c026d3; padding: 8px 12px; border-radius: 0 8px 8px 0; margin-bottom: 14px;'>
         <strong style='color: #f5d0fe;'>⚡ AMBIENTE BETA REATIVO:</strong>
-        <span style='color: #e2e8f0; font-size: 0.9rem;'>Partidas curtas de 8 a 12 minutos. Sincronização direta com a rota InPlay da Bet365.</span>
+        <span style='color: #e2e8f0; font-size: 0.9rem;'>Partidas curtas de 8 a 12 minutos. Sincronização direta com a rota InPlay da Bet365 (protegido contra limite de taxa).</span>
     </div>
     """, unsafe_allow_html=True)
     
@@ -1418,7 +1417,7 @@ with tab_esoccer:
             st.markdown("<div style='margin-bottom: 20px;'></div>", unsafe_allow_html=True)
     else:
         if status_erro:
-            st.warning(f"⚠️ Alerta de Conexão com o Feed: {status_erro}. Verifique se a variável BETSAPI_KEY está preenchida nos Secrets do Streamlit.")
+            st.warning(f"⚠️ Alerta de Conexão com o Feed: {status_erro}. Se for 429, aguarde 1 minuto para o limite da RapidAPI renovar.")
         else:
             st.info("🔄 Aguardando retorno da grade de e-Soccer da Bet365. Clique em 'Atualizar e-Soccer Agora'.")
 
