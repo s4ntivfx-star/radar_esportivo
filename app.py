@@ -469,8 +469,7 @@ def calcular_pre_jogo(casa, fora, torneio):
                 f"Ambos os conjuntos marcaram na maioria das partidas recentes do {casa}.",
                 "Cotação com valor esperado (+EV) face ao risco implícito."
             ],
-            "ponto_risco": "Avançados titulares no banco ou falta de pontaria em ocasiões claras."
-            ,
+            "ponto_risco": "Avançados titulares no banco ou falta de pontaria em ocasiões claras.",
             "alternativas": [
                 {"mercado": "Mais de 2.5 Gols no Jogo", "odd": 2.05},
                 {"mercado": f"{casa} marca pelo menos 1 golo", "odd": 1.25}
@@ -861,7 +860,7 @@ def carregar_jogos_ao_vivo():
     return pd.DataFrame(lista)
 
 # ==========================================
-# 6. MOTOR E-SOCCER (FILTRO RIGOROSO SEM FALLBACK FANTASMA)
+# 6. MOTOR E-SOCCER (SEM FALLBACK FANTASMA)
 # ==========================================
 def extrair_piloto_e_clube(nome_bruto):
     match = re.search(r'^(.*?)\s*\((.*?)\)$', str(nome_bruto).strip())
@@ -892,7 +891,6 @@ def carregar_jogos_esoccer():
     lista = []
     jogo_id = 900
     
-    # 1. Tenta aceder à BetsAPI via chave configurada
     api_bets_key = st.secrets.get("BETSAPI_KEY", "") or st.secrets.get("RAPIDAPI_KEY", "")
     api_bets_host = st.secrets.get("BETSAPI_HOST", "betsapi2.p.rapidapi.com")
     
@@ -950,7 +948,6 @@ def carregar_jogos_esoccer():
         except Exception:
             pass
 
-    # 2. Se a BetsAPI não devolver dados, consulta a rota geral da SportAPI
     if not lista:
         rapidapi_key = st.secrets.get("RAPIDAPI_KEY", "")
         rapidapi_host = st.secrets.get("RAPIDAPI_HOST", "sportapi7.p.rapidapi.com")
@@ -1001,12 +998,11 @@ def carregar_jogos_esoccer():
                                         "Ajuste contínuo da linha com a progressão da partida."
                                     ],
                                     "ponto_risco": "Redução do volume ofensivo nos momentos de encerramento."
-                                馬})
+                                })
                                 jogo_id += 1
             except Exception:
                 pass
 
-    # SEM DADOS FANTASMA: Se nada for validado em tempo real, devolve vazio
     return pd.DataFrame(lista)
 
 # ==========================================
