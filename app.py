@@ -715,12 +715,12 @@ def carregar_jogos_pre_jogo(data_consulta_str):
                                 t_info = c.get("team", {})
                                 nome_time = t_info.get("shortDisplayName", t_info.get("name", "Time"))
                                 logo_time = t_info.get("logo", ESCUDO_PADRAO)
-                            if c.get("homeAway") == "home":
-                                casa = nome_time
-                                logo_casa = logo_time
-                            else:
-                                fora = nome_time
-                                logo_fora = logo_time
+                                if c.get("homeAway") == "home":
+                                    casa = nome_time
+                                    logo_casa = logo_time
+                                else:
+                                    fora = nome_time
+                                    logo_fora = logo_time
                             analise = calcular_pre_jogo(casa, fora, nome_liga)
                             lista.append({
                                 "id": f"pre_{jogo_id}",
@@ -860,10 +860,9 @@ def carregar_jogos_ao_vivo():
     return pd.DataFrame(lista)
 
 # ==========================================
-# 6. MOTOR E-SOCCER (LIMPEZA DE ESPORTS & PILOTOS)
+# 6. MOTOR E-SOCCER (ROTA /v1/ CONFIRMADA)
 # ==========================================
 def extrair_piloto_e_clube(nome_bruto):
-    # Remove as tags (Esports), Esports, (esport), etc.
     texto = re.sub(r'\(?esports?\)?', '', str(nome_bruto), flags=re.IGNORECASE).strip()
     match = re.search(r'^(.*?)\s*\((.*?)\)', texto)
     if match:
@@ -895,13 +894,13 @@ def carregar_jogos_esoccer():
     jogo_id = 900
     msg_debug = ""
     
-    # 1. Consulta à BetsAPI
     api_bets_key = st.secrets.get("BETSAPI_KEY", "") or st.secrets.get("RAPIDAPI_KEY", "")
     api_bets_host = st.secrets.get("BETSAPI_HOST", "betsapi2.p.rapidapi.com")
     
     if api_bets_key:
         try:
-            url_bets = f"https://{api_bets_host}/v3/bet365/inplay"
+            # Endereço atualizado com /v1/ conforme a chave ativa
+            url_bets = f"https://{api_bets_host}/v1/bet365/inplay"
             headers_bets = {"x-rapidapi-key": api_bets_key, "x-rapidapi-host": api_bets_host}
             resp_bets = requests.get(url_bets, headers=headers_bets, timeout=10)
             
@@ -919,7 +918,6 @@ def carregar_jogos_esoccer():
                         clube_c, piloto_c = extrair_piloto_e_clube(casa_raw)
                         clube_f, piloto_f = extrair_piloto_e_clube(fora_raw)
                         
-                        # Aceita se encontrou pelo menos um piloto ou se for explicitamente liga de videojogos
                         if piloto_c or piloto_f or "gt league" in t_low or "battle" in t_low:
                             piloto_c = piloto_c if piloto_c else "Gamer 1"
                             piloto_f = piloto_f if piloto_f else "Gamer 2"
@@ -957,7 +955,7 @@ def carregar_jogos_esoccer():
             else:
                 msg_debug = f"Status API: {resp_bets.status_code} ({resp_bets.reason})"
         except Exception as e:
-            msg_debug = f"Erro de conexão com a API: {str(e)[:50]}"
+            msg_debug = f"Erro de conexão: {str(e)[:50]}"
 
     return pd.DataFrame(lista), msg_debug
 
