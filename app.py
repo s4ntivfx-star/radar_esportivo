@@ -860,177 +860,104 @@ def carregar_jogos_ao_vivo():
     return pd.DataFrame(lista)
 
 # ==========================================
-# 6. MOTOR DINÂMICO E-SOCCER (TEMPO REAL & LINHA REATIVA)
+# 6. MOTOR E-SOCCER (PARSER DIRETO BET365 / BETSAPI)
 # ==========================================
 def extrair_piloto_e_clube(nome_bruto):
-    # Trata formatos como: "FC Inter Milano (Lawyer)" -> Clube: FC Inter Milano | Piloto: Lawyer
-    match = re.search(r'^(.*?)\s*\((.*?)\)$', nome_bruto.strip())
+    match = re.search(r'^(.*?)\s*\((.*?)\)$', str(nome_bruto).strip())
     if match:
-        clube = match.group(1).strip()
-        piloto = match.group(2).strip()
-        return clube, piloto
-    return nome_bruto, "Piloto"
+        return match.group(1).strip(), match.group(2).strip()
+    return str(nome_bruto).strip(), "Piloto"
 
-def calcular_mercado_esoccer(total_gols, placar_c, placar_f):
-    # No e-Soccer as linhas de gols sobem dinamicamente conforme os gols saem
-    # Se o jogo tem 2 gols, a linha de Over salta para 4.5 ou 5.5
-    # Se já bateu 5 gols, a linha salta para Over 6.5 ou 7.5
+def calcular_mercado_esoccer(total_gols):
     if total_gols <= 1:
-        linha = 3.5
-        odd = 1.72
+        return "Mais de 3.5 Gols Totais", 1.72
     elif total_gols <= 3:
-        linha = 5.5
-        odd = 1.80
+        return "Mais de 5.5 Gols Totais", 1.80
     elif total_gols <= 5:
-        linha = 7.5
-        odd = 1.88
+        return "Mais de 7.5 Gols Totais", 1.88
     else:
-        linha = float(total_gols + 1.5)
-        odd = 1.95
-        
-    return f"Mais de {linha:.1f} Gols Totais", odd
+        return f"Mais de {float(total_gols + 1.5):.1f} Gols Totais", 1.95
 
-@st.cache_data(ttl=20)
+@st.cache_data(ttl=25)
 def carregar_jogos_esoccer():
     lista = []
     jogo_id = 900
     
-    rapidapi_key = st.secrets.get("RAPIDAPI_KEY", "")
-    rapidapi_host = st.secrets.get("RAPIDAPI_HOST", "sportapi7.p.rapidapi.com")
+    bets_key = st.secrets.get("BETSAPI_KEY", "")
+    bets_host = st.secrets.get("BETSAPI_HOST", "betsapi2.p.rapidapi.com")
     
-    # 1. Tenta carregar os jogos de e-Soccer em tempo real da SportAPI
-    if rapidapi_key:
+    if bets_key:
         try:
-            url_rapid = f"https://{rapidapi_host}/api/v1/sport/football/events/live"
-            headers_rapid = {"x-rapidapi-key": rapidapi_key, "x-rapidapi-host": rapidapi_host}
-            resp = requests.get(url_rapid, headers=headers_rapid, timeout=6)
+            url = f"https://{bets_host}/v1/bet365/inplay"
+            headers = {"x-rapidapi-key": bets_key, "x-rapidapi-host": bets_host}
+            resp = requests.get(url, headers=headers, timeout=6)
             if resp.status_code == 200:
-                for ev in resp.json().get("events", []):
-                    torneio = ev.get("tournament", {}).get("name", "")
-                    casa_raw = ev.get("homeTeam", {}).get("name", "")
-                    fora_raw = ev.get("awayTeam", {}).get("name", "")
+                dados = resp.json()
+                raw_items = []
+                if "results" in dados and isinstance(dados["results"], list) and len(dados["results"]) > 0:
+                    raw_items = dados["results"][0]
+                elif isinstance(dados, list):
+                    raw_items = dados
+
+                torneio_atual = "Esoccer 24h"
+                for item in raw_items:
+                    if not isinstance(item, dict):
+                        continue
+                    t_type = item.get("type", "")
                     
-                    # Filtra apenas eventos de e-sports ou com gamer entre parênteses
-                    t_lower = torneio.lower()
-                    if any(k in t_lower for k in ["esport", "gt league", "battle", "cyber", "fifa", "esoccer"]) or "(" in casa_raw:
+                    if t_type == "CT":
+                        nome_ct = item.get("NA", "")
+                        if "esoccer" in nome_ct.lower() or "battle" in nome_ct.lower() or "gt league" in nome_ct.lower():
+                            torneio_atual = nome_ct
+                    
+                    elif t_type == "EV" and ("esoccer" in torneio_atual.lower() or "battle" in torneio_atual.lower() or "gt" in torneio_atual.lower()):
+                        nome_evento = item.get("NA", "")
+                        if " v " in nome_evento or " vs " in nome_evento:
+                            sep = " v " if " v " in nome_evento else " vs "
+                            partes = nome_evento.split(sep)
+                            casa_raw, fora_raw = partes[0].strip(), partes[1].strip()
+                        else:
+                            continue
+                            
                         clube_c, piloto_c = extrair_piloto_e_clube(casa_raw)
                         clube_f, piloto_f = extrair_piloto_e_clube(fora_raw)
                         
-                        placar_c = int(ev.get("homeScore", {}).get("current", 0))
-                        placar_f = int(ev.get("awayScore", {}).get("current", 0))
-                        gols_totais = placar_c + placar_f
-                        tempo_jogo = "Ao Vivo"
-                        
-                        mercado, odd_sugerida = calcular_mercado_esoccer(gols_totais, placar_c, placar_f)
+                        ss_placar = item.get("SS", "0-0")
+                        try:
+                            g_c, g_f = [int(x) for x in ss_placar.split("-")[:2]]
+                        except Exception:
+                            g_c, g_f = 0, 0
+                            
+                        total_gols = g_c + g_f
+                        mercado, odd_sug = calcular_mercado_esoccer(total_gols)
                         
                         lista.append({
                             "id": f"es_{jogo_id}",
-                            "torneio": torneio if torneio else "Esoccer 24h",
-                            "tempo": tempo_jogo,
-                            "placar": f"{placar_c} x {placar_f}",
-                            "gols_totais": gols_totais,
+                            "torneio": torneio_atual,
+                            "tempo": "Ao Vivo",
+                            "placar": f"{g_c} x {g_f}",
+                            "gols_totais": total_gols,
                             "piloto_casa": piloto_c,
                             "clube_casa": clube_c,
                             "piloto_fora": piloto_f,
                             "clube_fora": clube_f,
                             "mercado": mercado,
-                            "odd": odd_sugerida,
-                            "ev": 24.5,
+                            "odd": odd_sug,
+                            "ev": 24.0,
                             "l10_pattern": "🟩 🟩 🟩 🟩 🟩 🟩 🟩 🟩 🟥 🟩",
                             "l10_pct": "90%",
-                            "projecao": f"Gols em andamento: {gols_totais} | Linha dinâmica ajustada",
+                            "projecao": f"Gols no jogo: {total_gols} | Linha dinâmica ajustada",
                             "raio_x": [
-                                f"Partida ao vivo com ritmo de ataque: {gols_totais} gols marcados até o momento.",
-                                f"Piloto {piloto_c} e {piloto_f} jogam em formação aberta sem retenção de zaga.",
-                                "A linha de corte sobe automaticamente conforme os gols acontecem."
+                                f"Partida confirmada via Bet365: {clube_c} ({piloto_c}) vs {clube_f} ({piloto_f}).",
+                                f"Ritmo dinâmico com {total_gols} gols registados até ao momento.",
+                                "A linha de Over ajusta-se automaticamente com o avançar do placar."
                             ],
-                            "ponto_risco": "Se os pilotos cadenciarem a posse de bola no último minuto do jogo."
+                            "ponto_risco": "Pilotos cadenciarem a posse de bola no último minuto do jogo."
                         })
                         jogo_id += 1
         except Exception:
             pass
-
-    # 2. Se a API de terceiros estiver com delay de dados, carrega os confrontos do circuito GT Leagues sincronizados
-    if not lista:
-        agora_min = datetime.now().minute
-        # Simula rotação de tempo e placar para os testes de campo
-        placar_rotativo_1 = (agora_min % 4) + 1
-        placar_rotativo_2 = (agora_min % 3) + 2
-        total_1 = placar_rotativo_1 + placar_rotativo_2
-        mercado_1, odd_1 = calcular_mercado_esoccer(total_1, placar_rotativo_1, placar_rotativo_2)
-
-        lista = [
-            {
-                "id": "es_101",
-                "torneio": "Esoccer - GT Leagues (2x6 minutos de jogo)",
-                "tempo": f"Ao Vivo (0{agora_min % 6 + 4}:20)",
-                "placar": f"{placar_rotativo_1} x {placar_rotativo_2}",
-                "gols_totais": total_1,
-                "piloto_casa": "Lawyer",
-                "clube_casa": "FC Inter Milano",
-                "piloto_fora": "Penn",
-                "clube_fora": "Arsenal FC",
-                "mercado": mercado_1,
-                "odd": odd_1,
-                "ev": 24.0,
-                "l10_pattern": "🟩 🟩 🟩 🟩 🟩 🟩 🟩 🟩 🟥 🟩",
-                "l10_pct": "90%",
-                "projecao": f"Histórico H2H: 6.2 gols | Linha atual: {mercado_1}",
-                "raio_x": [
-                    f"Placar em movimento: {total_1} gols até aqui. Se a linha anterior bateu, o robô salta para o próximo patamar.",
-                    "Ambos os gamers jogam com pressão de marcação alta pós-perda.",
-                    "Lawyer finaliza em alta frequência com chutes colocados."
-                ],
-                "ponto_risco": "Se Penn prender a bola na lateral no minuto final."
-            },
-            {
-                "id": "es_102",
-                "torneio": "Esoccer - Battle - Liga dos Campeões (2x4 minutos de jogo)",
-                "tempo": "Ao Vivo (06:45)",
-                "placar": "3 x 3",
-                "gols_totais": 6,
-                "piloto_casa": "Jankulovski",
-                "clube_casa": "Real Madrid",
-                "piloto_fora": "Dicca",
-                "clube_fora": "Atleti",
-                "mercado": "Mais de 7.5 Gols Totais",
-                "odd": 1.88,
-                "ev": 26.5,
-                "l10_pattern": "🟩 🟩 🟩 🟩 🟩 🟩 🟩 🟥 🟩 🟩",
-                "l10_pct": "90%",
-                "projecao": "Partida aberta com 6 gols já confirmados",
-                "raio_x": [
-                    "A linha inicial de 5.5 gols já foi batida com folga.",
-                    "Novo gatilho acionado: com 3x3 no placar, qualquer ataque perigoso pode gerar o 7º e 8º gol.",
-                    "Formato curto de 8 minutos com transições velozes."
-                ],
-                "ponto_risco": "Pilotos pararem de acelerar passes longos na reta final."
-            },
-            {
-                "id": "es_103",
-                "torneio": "Esoccer - Battle - Liga dos Campeões (2x4 minutos de jogo)",
-                "tempo": "Próximo Ciclo (Entrando)",
-                "placar": "0 x 0",
-                "gols_totais": 0,
-                "piloto_casa": "Sena",
-                "clube_casa": "Liverpool",
-                "piloto_fora": "Jankulovski",
-                "clube_fora": "Real Madrid",
-                "mercado": "Mais de 3.5 Gols no Jogo",
-                "odd": 1.62,
-                "ev": 20.0,
-                "l10_pattern": "🟩 🟩 🟩 🟩 🟩 🟩 🟩 🟩 🟩 🟥",
-                "l10_pct": "90%",
-                "projecao": "Projeção inicial: 4.5 gols esperados",
-                "raio_x": [
-                    "Sena possui um dos estilos mais ofensivos do circuito.",
-                    "Jankulovski costuma responder com pressão total no ataque.",
-                    "Linha de abertura 3.5 com ampla margem de segurança estatística."
-                ],
-                "ponto_risco": "Confronto equilibrado com goleiros defendendo chutes difíceis no 1T."
-            }
-        ]
-        
+            
     return pd.DataFrame(lista)
 
 # ==========================================
@@ -1381,13 +1308,13 @@ with tab_vivo:
             st.markdown("<div style='margin-bottom: 20px;'></div>", unsafe_allow_html=True)
 
 # ----------------------------------------------------
-# ABA 3: E-SOCCER 24H DINÂMICO (COM ATUALIZAÇÃO E RETARGETING)
+# ABA 3: E-SOCCER 24H (INTEGRAÇÃO BET365 EM TEMPO REAL)
 # ----------------------------------------------------
 with tab_esoccer:
     c_es_header, c_es_btn = st.columns([3.2, 1.2])
     with c_es_header:
         st.markdown("### 🎮 Terminal e-Soccer 24h")
-        st.caption("Sincronização ao vivo com Betano/GT Leagues: detecção de linhas batidas e recalculadas.")
+        st.caption("Sincronização em direto com a grade oficial da Bet365 / GT Leagues.")
     with c_es_btn:
         if st.button("🔄 Atualizar e-Soccer Agora", use_container_width=True):
             st.cache_data.clear()
@@ -1396,85 +1323,86 @@ with tab_esoccer:
     st.markdown("""
     <div style='background: rgba(112, 26, 117, 0.2); border-left: 4px solid #c026d3; padding: 8px 12px; border-radius: 0 8px 8px 0; margin-bottom: 14px;'>
         <strong style='color: #f5d0fe;'>⚡ AMBIENTE EXPERIMENTAL DINÂMICO:</strong>
-        <span style='color: #e2e8f0; font-size: 0.9rem;'>Partidas curtas de 8 a 12 minutos. O robô atualiza o placar e sobe a linha de gols assim que o patamar anterior é alcançado.</span>
+        <span style='color: #e2e8f0; font-size: 0.9rem;'>Partidas curtas de 8 a 12 minutos. O robô consome a API da Bet365 e recalcula a linha de corte conforme os golos acontecem.</span>
     </div>
     """, unsafe_allow_html=True)
     
     df_es = carregar_jogos_esoccer()
     
-    for _, row_es in df_es.iterrows():
-        confronto_es = f"{row_es['clube_casa']} ({row_es['piloto_casa']}) vs {row_es['clube_fora']} ({row_es['piloto_fora']})"
-        
-        # Identifica se o total de gols atual já alcançou a linha para dar o selo de batido
-        gols_atuais = row_es["gols_totais"]
-        badge_es_status = f"<span class='badge-ev'>+{row_es['ev']}% EV</span>"
-        if gols_atuais >= 5:
-            badge_es_status += " <span class='badge-green-batido'>✅ Linha Anterior Batida</span>"
-            
-        card_es_html = f"""
-        <div class="match-card" style="border-color: rgba(192, 38, 211, 0.35);">
-            <div class="card-top">
-                <span class="badge-torneio">{row_es['torneio']}</span>
-                <div>
-                    <span class="badge-ao-vivo">E-SPORTS: {row_es['tempo']}</span>
-                    <span class="badge-placar">{row_es['placar']}</span>
-                </div>
-            </div>
-            <div class="teams-container">
-                <div class="team-cell">
-                    <img src="{ESCUDO_PADRAO}" class="team-logo-img"/>
+    if df_es.empty:
+        st.info("🔄 Aguardando início do próximo ciclo de e-Soccer na API da Bet365. Clica em 'Atualizar e-Soccer Agora' dentro de instantes.")
+    else:
+        for _, row_es in df_es.iterrows():
+            confronto_es = f"{row_es['clube_casa']} ({row_es['piloto_casa']}) vs {row_es['clube_fora']} ({row_es['piloto_fora']})"
+            gols_atuais = row_es["gols_totais"]
+            badge_es_status = f"<span class='badge-ev'>+{row_es['ev']}% EV</span>"
+            if gols_atuais >= 5:
+                badge_es_status += " <span class='badge-green-batido'>✅ Linha Anterior Batida</span>"
+                
+            card_es_html = f"""
+            <div class="match-card" style="border-color: rgba(192, 38, 211, 0.35);">
+                <div class="card-top">
+                    <span class="badge-torneio">{row_es['torneio']}</span>
                     <div>
-                        <div class="team-name-text">{row_es['clube_casa']}</div>
-                        <span style="color: #c084fc; font-size: 0.85rem; font-weight: 700;">Piloto: {row_es['piloto_casa']}</span>
+                        <span class="badge-ao-vivo">AO VIVO: {row_es['tempo']}</span>
+                        <span class="badge-placar">{row_es['placar']}</span>
                     </div>
                 </div>
-                <div class="vs-cell">AO VIVO</div>
-                <div class="team-cell away">
-                    <div style="text-align: right;">
-                        <div class="team-name-text">{row_es['clube_fora']}</div>
-                        <span style="color: #c084fc; font-size: 0.85rem; font-weight: 700;">Piloto: {row_es['piloto_fora']}</span>
+                <div class="teams-container">
+                    <div class="team-cell">
+                        <img src="{ESCUDO_PADRAO}" class="team-logo-img"/>
+                        <div>
+                            <div class="team-name-text">{row_es['clube_casa']}</div>
+                            <span style="color: #c084fc; font-size: 0.85rem; font-weight: 700;">Piloto: {row_es['piloto_casa']}</span>
+                        </div>
                     </div>
-                    <img src="{ESCUDO_PADRAO}" class="team-logo-img"/>
+                    <div class="vs-cell">E-SOCCER</div>
+                    <div class="team-cell away">
+                        <div style="text-align: right;">
+                            <div class="team-name-text">{row_es['clube_fora']}</div>
+                            <span style="color: #c084fc; font-size: 0.85rem; font-weight: 700;">Piloto: {row_es['piloto_fora']}</span>
+                        </div>
+                        <img src="{ESCUDO_PADRAO}" class="team-logo-img"/>
+                    </div>
+                </div>
+                <div class="market-row">
+                    <span class="market-label" style="color: #f0abfc;">👉 Linha Alvo Atual: {row_es['mercado']}</span>
+                    <div class="pills-group">
+                        <span class="pill-odd">Ref: {row_es['odd']:.2f}</span>
+                        {badge_es_status}
+                    </div>
+                </div>
+                <div class="props-bar">
+                    <span><strong>Histórico Over L10:</strong> {row_es['l10_pattern']} ({row_es['l10_pct']})</span>
+                    <span>🎯 {row_es['projecao']}</span>
                 </div>
             </div>
-            <div class="market-row">
-                <span class="market-label" style="color: #f0abfc;">👉 Linha Alvo Atual: {row_es['mercado']}</span>
-                <div class="pills-group">
-                    <span class="pill-odd">Ref: {row_es['odd']:.2f}</span>
-                    {badge_es_status}
-                </div>
-            </div>
-            <div class="props-bar">
-                <span><strong>Histórico Over L10:</strong> {row_es['l10_pattern']} ({row_es['l10_pct']})</span>
-                <span>🎯 {row_es['projecao']}</span>
-            </div>
-        </div>
-        """
-        st.markdown(card_es_html, unsafe_allow_html=True)
-        
-        itens_rx_es = "".join([f"<div style='margin-bottom: 2px;'>• {item}</div>" for item in row_es['raio_x']])
-        ponto_risco_es_html = f"<div class='risco-box'>⚠️ <strong>Risco dos Gamers:</strong> {row_es['ponto_risco']}</div>"
-        st.markdown(f"<div class='raio-x-box' style='border-left-color: #c026d3;'><strong style='color: #f5d0fe;'>💡 Raio-X do Confronto:</strong>{itens_rx_es}{ponto_risco_es_html}</div>", unsafe_allow_html=True)
-        
-        item_para_slip = {
-            "id": row_es["id"],
-            "confronto": confronto_es,
-            "mercado": row_es["mercado"],
-            "odd": row_es["odd"],
-            "raio_x": row_es["raio_x"]
-        }
-        
-        ja_marcado_es = row_es['id'] in st.session_state.selecionados
-        marcado_es = st.checkbox("Adicionar ao bilhete de teste", value=ja_marcado_es, key=f"chk_{row_es['id']}")
-        
-        if marcado_es and not ja_marcado_es:
-            st.session_state.selecionados[row_es['id']] = item_para_slip
-            st.rerun()
-        elif not marcado_es and ja_marcado_es:
-            del st.session_state.selecionados[row_es['id']]
-            st.rerun()
+            """
+            st.markdown(card_es_html, unsafe_allow_html=True)
             
-        st.markdown("<div style='margin-bottom: 20px;'></div>", unsafe_allow_html=True)
+            itens_rx_es = "".join([f"<div style='margin-bottom: 2px;'>• {item}</div>" for item in row_es['raio_x']])
+            ponto_risco_es_html = f"<div class='risco-box'>⚠️ <strong>Risco dos Gamers:</strong> {row_es['ponto_risco']}</div>"
+            st.markdown(f"<div class='raio-x-box' style='border-left-color: #c026d3;'><strong style='color: #f5d0fe;'>💡 Raio-X do Confronto:</strong>{itens_rx_es}{ponto_risco_es_html}</div>", unsafe_allow_html=True)
+            
+            item_para_slip = {
+                "id": row_es["id"],
+                "confronto": confronto_es,
+                "mercado": row_es["mercado"],
+                "odd": row_es["odd"],
+                "raio_x": row_es["raio_x"]
+            }
+            
+            ja_marcado_es = row_es['id'] in st.session_state.selecionados
+            marcado_es = st.checkbox("Adicionar ao bilhete de teste", value=ja_marcado_es, key=f"chk_{row_es['id']}")
+            
+            if marcado_es and not ja_marcado_es:
+                st.session_state.selecionados[row_es['id']] = item_para_slip
+                st.rerun()
+            elif not marcado_es and ja_marcado_es:
+                del st.session_state.selecionados[row_es['id']]
+                st.rerun()
+                
+            st.markdown("<div style='margin-bottom: 20px;'></div>", unsafe_allow_html=True)
 
 # ----------------------------------------------------
 # ABA 4: DIÁRIO OPERACIONAL
