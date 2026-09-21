@@ -860,7 +860,7 @@ def carregar_jogos_ao_vivo():
     return pd.DataFrame(lista)
 
 # ==========================================
-# 6. MOTOR E-SOCCER (ROTA /v1/ CONFIRMADA)
+# 6. MOTOR E-SOCCER (TRATAMENTO DE LISTA CONFIRMADO)
 # ==========================================
 def extrair_piloto_e_clube(nome_bruto):
     texto = re.sub(r'\(?esports?\)?', '', str(nome_bruto), flags=re.IGNORECASE).strip()
@@ -899,17 +899,33 @@ def carregar_jogos_esoccer():
     
     if api_bets_key:
         try:
-            # Endereço atualizado com /v1/ conforme a chave ativa
             url_bets = f"https://{api_bets_host}/v1/bet365/inplay"
             headers_bets = {"x-rapidapi-key": api_bets_key, "x-rapidapi-host": api_bets_host}
             resp_bets = requests.get(url_bets, headers=headers_bets, timeout=10)
             
             if resp_bets.status_code == 200:
-                dados_json = resp_bets.json().get("results", [])
+                conteudo = resp_bets.json()
+                
+                # Tratamento robusto para listas ou dicionários
+                if isinstance(conteudo, list):
+                    dados_json = conteudo
+                elif isinstance(conteudo, dict):
+                    dados_json = conteudo.get("results", [])
+                    if not dados_json:
+                        dados_json = list(conteudo.values()) if isinstance(conteudo, dict) else []
+                else:
+                    dados_json = []
+
                 for ev in dados_json:
-                    torneio = ev.get("league", {}).get("name", "")
-                    casa_raw = ev.get("home", {}).get("name", "")
-                    fora_raw = ev.get("away", {}).get("name", "")
+                    if not isinstance(ev, dict):
+                        continue
+                        
+                    torneio = ev.get("league", {}).get("name", "") if isinstance(ev.get("league"), dict) else ""
+                    
+                    casa_obj = ev.get("home", {})
+                    fora_obj = ev.get("away", {})
+                    casa_raw = casa_obj.get("name", "") if isinstance(casa_obj, dict) else str(casa_obj)
+                    fora_raw = fora_obj.get("name", "") if isinstance(fora_obj, dict) else str(fora_obj)
                     
                     t_low = torneio.lower()
                     is_es = any(k in t_low for k in ["esoccer", "gt league", "battle", "cyber", "fifa", "h2h gg", "electronic"]) or "esport" in str(casa_raw).lower()
@@ -955,7 +971,7 @@ def carregar_jogos_esoccer():
             else:
                 msg_debug = f"Status API: {resp_bets.status_code} ({resp_bets.reason})"
         except Exception as e:
-            msg_debug = f"Erro de conexão: {str(e)[:50]}"
+            msg_debug = f"Erro de processamento: {str(e)[:50]}"
 
     return pd.DataFrame(lista), msg_debug
 
