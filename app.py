@@ -218,7 +218,7 @@ def calcular_pre_jogo(casa, fora, torneio):
             "raio_x": [
                 "Transição rápida pelas pontas com alto volume de cruzamentos.",
                 "Média estatística do confronto aponta mais de 10.2 escanteios totais.",
-                "Linha rebaixada de segurança (7.5) bem abaixo da linha padrão das casas."
+                "Linha rebaixada de segurança (7.5) bem abaixo da média das casas."
             ]
         },
         {
@@ -251,46 +251,46 @@ def calcular_ao_vivo_sniper(casa, fora, placar_c, placar_f, minuto_str):
     gols = placar_c + placar_f
     dif = abs(placar_c - placar_f)
     
-    # 🎯 JANELA 1: SNIPER DO 1º TEMPO (25' até 38' com 0x0)
-    if 25 <= minuto <= 38 and gols == 0:
+    # 🎯 JANELA 1: SNIPER DO 1º TEMPO (20' até 40' com 0x0)
+    if 20 <= minuto <= 40 and gols == 0:
         return {
             "tem_entrada": True,
             "mercado": "Mais de 0.5 Gols no 1º Tempo (HT)",
-            "odd": 1.72,
+            "odd": 1.74,
             "ev": 26.4,
             "raio_x": [
-                f"🔥 GATILHO SNIPER ATIVADO: 0x0 aos {minuto}'. Odd do gol no 1T atingiu o ponto de valor.",
+                f"🔥 GATILHO SNIPER ATIVADO: 0x0 aos {minuto}'. Odd do gol no 1T atingiu o ponto ideal de valor.",
                 "Linhas de pressão mostram volume ofensivo consistente.",
-                "Entrada limpa: basta 1 gol até o intervalo para bater a aposta."
+                "Entrada limpa: basta 1 gol até o intervalo para bater o green."
             ]
         }
         
-    # 🎯 JANELA 2: SNIPER DO 2º TEMPO (68' até 82' com jogo parelho - dif <= 1)
-    if 68 <= minuto <= 82 and dif <= 1:
+    # 🎯 JANELA 2: SNIPER DO 2º TEMPO (65' até 85' com jogo parelho - dif <= 1)
+    if 65 <= minuto <= 85 and dif <= 1:
         linha_over = gols + 0.5
         return {
             "tem_entrada": True,
             "mercado": f"Mais de {linha_over:.1f} Gols no Jogo (Próximo Gol)",
-            "odd": 1.80,
+            "odd": 1.82,
             "ev": 21.0,
             "raio_x": [
                 f"🔥 GATILHO DE RETA FINAL: Jogo em aberto ({placar_c}x{placar_f}) aos {minuto}'.",
                 "O time em desvantagem partiu para o abafa, abrindo espaço para contra-ataques.",
-                f"Excelente relação odd/risco para sair mais 1 gol na partida."
+                f"Excelente relação odd/risco para sair pelo menos mais 1 gol."
             ]
         }
 
-    # 🎯 JANELA 3: SNIPER DE ESCANTEIOS EM RETA FINAL (78' até 88' com mandante perdendo)
-    if 78 <= minuto <= 88 and (placar_c < placar_f):
+    # 🎯 JANELA 3: SNIPER DE ESCANTEIOS EM RETA FINAL (75' até 88' com time da casa perdendo)
+    if 75 <= minuto <= 88 and (placar_c < placar_f):
         return {
             "tem_entrada": True,
             "mercado": "Mais de 1.5 Escanteios nos Minutos Finais",
             "odd": 1.65,
             "ev": 18.5,
             "raio_x": [
-                f"🔥 PRESSÃO MÁXIMA: {casa} pressionando em casa aos {minuto}'.",
-                "Zaga afastando bolas cruzadas em sequência pela linha de fundo.",
-                "Mercado de cantos independente de pontaria dos atacantes."
+                f"🔥 PRESSÃO MÁXIMA: {casa} perdendo em casa aos {minuto}'.",
+                "Zaga adversária afastando bolas cruzadas em sequência pela linha de fundo.",
+                "Mercado de cantos que independe de pontaria dos atacantes."
             ]
         }
 
@@ -302,21 +302,27 @@ def calcular_ao_vivo_sniper(casa, fora, placar_c, placar_f, minuto_str):
         "ev": 0.0,
         "raio_x": [
             f"Confronto aos {minuto}' ({placar_c}x{placar_f}) fora dos gatilhos matemáticos do Sniper.",
-            "Odds atuais sem margem matemática aceitável (linhas esmagadas ou voláteis).",
+            "Odds atuais sem margem matemática aceitável (linhas esmagadas ou com risco desproporcional).",
             "O Radar Pro bloqueia entradas sem assimetria real de probabilidade."
         ]
     }
 
 # ==========================================
-# 4. CARREGAMENTO COM DATAS (HOJE E AMANHÃ)
+# 4. CARREGAMENTO ROBUSTO (PRÉ-JOGO & AO VIVO 24H)
 # ==========================================
 LIGAS_ESPN = {
-    "Brasileirão": "bra.1",
+    "Brasileirão Série A": "bra.1",
+    "Brasileirão Série B": "bra.2",
     "Premier League": "eng.1",
     "La Liga": "esp.1",
-    "Serie A": "ita.1",
+    "Serie A (Itália)": "ita.1",
     "Bundesliga": "ger.1",
-    "Champions League": "uefa.champions"
+    "Ligue 1 (França)": "fra.1",
+    "Liga Portugal": "por.1",
+    "Liga Argentina": "arg.1",
+    "Champions League": "uefa.champions",
+    "Copa Libertadores": "conmebol.libertadores",
+    "Copa Sul-Americana": "conmebol.sudamericana"
 }
 
 @st.cache_data(ttl=300)
@@ -325,10 +331,11 @@ def carregar_jogos_pre_jogo(data_consulta_str):
     jogo_id = 100
     fuso_br = timezone(timedelta(hours=-3))
     
+    # 1. Tenta buscar pela data solicitada
     for nome_liga, codigo in LIGAS_ESPN.items():
         url = f"https://site.api.espn.com/apis/site/v2/sports/soccer/{codigo}/scoreboard?dates={data_consulta_str}"
         try:
-            resp = requests.get(url, timeout=6)
+            resp = requests.get(url, timeout=5)
             if resp.status_code == 200:
                 for ev in resp.json().get("events", []):
                     estado = ev.get("status", {}).get("type", {}).get("name", "")
@@ -339,7 +346,7 @@ def carregar_jogos_pre_jogo(data_consulta_str):
                             try:
                                 dt_utc = datetime.fromisoformat(data_iso.replace("Z", "+00:00"))
                                 dt_br = dt_utc.astimezone(fuso_br)
-                                horario_str = dt_br.strftime("%H:%M")
+                                horario_str = dt_br.strftime("%d/%m %H:%M")
                             except Exception:
                                 horario_str = "--:--"
                                 
@@ -365,6 +372,48 @@ def carregar_jogos_pre_jogo(data_consulta_str):
                         jogo_id += 1
         except Exception:
             continue
+
+    # 2. SE A DATA ESPECÍFICA ESTIVER VAZIA (ex: segunda-feira sem jogos de elite):
+    # Busca a próxima rodada futura para a tela nunca ficar em branco!
+    if not lista:
+        for nome_liga, codigo in list(LIGAS_ESPN.items())[:6]:
+            url_geral = f"https://site.api.espn.com/apis/site/v2/sports/soccer/{codigo}/scoreboard"
+            try:
+                resp = requests.get(url_geral, timeout=5)
+                if resp.status_code == 200:
+                    for ev in resp.json().get("events", []):
+                        estado = ev.get("status", {}).get("type", {}).get("name", "")
+                        if estado == "STATUS_SCHEDULED":
+                            data_iso = ev.get("date", "")
+                            horario_str = "--:--"
+                            if data_iso:
+                                try:
+                                    dt_utc = datetime.fromisoformat(data_iso.replace("Z", "+00:00"))
+                                    dt_br = dt_utc.astimezone(fuso_br)
+                                    horario_str = dt_br.strftime("%d/%m %H:%M")
+                                except Exception:
+                                    horario_str = "--:--"
+                            competidores = ev.get("competitions", [{}])[0].get("competitors", [])
+                            casa, fora = "Casa", "Fora"
+                            for c in competidores:
+                                if c.get("homeAway") == "home":
+                                    casa = c.get("team", {}).get("shortDisplayName", "Casa")
+                                else:
+                                    fora = c.get("team", {}).get("shortDisplayName", "Fora")
+                            analise = calcular_pre_jogo(casa, fora, nome_liga)
+                            lista.append({
+                                "id": f"pre_{jogo_id}",
+                                "torneio": nome_liga,
+                                "horario": horario_str,
+                                "confronto": f"{casa} vs {fora}",
+                                "mercado": analise["mercado"],
+                                "odd": analise["odd"],
+                                "ev": analise["ev"],
+                                "raio_x": analise["raio_x"]
+                            })
+                            jogo_id += 1
+            except Exception:
+                continue
             
     return pd.DataFrame(lista)
 
@@ -373,10 +422,47 @@ def carregar_jogos_ao_vivo():
     lista = []
     jogo_id = 500
     
+    # 1. SportAPI (RapidAPI) - Puxa jogos ao vivo 24h de todo o planeta
+    rapidapi_key = st.secrets.get("RAPIDAPI_KEY", "")
+    rapidapi_host = st.secrets.get("RAPIDAPI_HOST", "sportapi7.p.rapidapi.com")
+    if rapidapi_key:
+        try:
+            url_rapid = f"https://{rapidapi_host}/api/v1/sport/football/events/live"
+            headers_rapid = {"x-rapidapi-key": rapidapi_key, "x-rapidapi-host": rapidapi_host}
+            resp_rapid = requests.get(url_rapid, headers=headers_rapid, timeout=5)
+            if resp_rapid.status_code == 200:
+                for ev in resp_rapid.json().get("events", []):
+                    casa = ev.get("homeTeam", {}).get("shortName", ev.get("homeTeam", {}).get("name", "Casa"))
+                    fora = ev.get("awayTeam", {}).get("shortName", ev.get("awayTeam", {}).get("name", "Fora"))
+                    torneio = ev.get("tournament", {}).get("name", "Internacional")
+                    confronto = f"{casa} vs {fora}"
+                    
+                    placar_c = int(ev.get("homeScore", {}).get("current", 0))
+                    placar_f = int(ev.get("awayScore", {}).get("current", 0))
+                    tempo_jogo = "Ao Vivo"
+                    
+                    analise = calcular_ao_vivo_sniper(casa, fora, placar_c, placar_f, tempo_jogo)
+                    lista.append({
+                        "id": f"vivo_{jogo_id}",
+                        "torneio": torneio,
+                        "tempo": tempo_jogo,
+                        "placar": f"{placar_c} x {placar_f}",
+                        "confronto": confronto,
+                        "tem_entrada": analise["tem_entrada"],
+                        "mercado": analise["mercado"],
+                        "odd": analise["odd"],
+                        "ev": analise["ev"],
+                        "raio_x": analise["raio_x"]
+                    })
+                    jogo_id += 1
+        except Exception:
+            pass
+
+    # 2. ESPN - Complementa com os jogos das ligas monitoradas
     for nome_liga, codigo in LIGAS_ESPN.items():
         url = f"https://site.api.espn.com/apis/site/v2/sports/soccer/{codigo}/scoreboard"
         try:
-            resp = requests.get(url, timeout=5)
+            resp = requests.get(url, timeout=4)
             if resp.status_code == 200:
                 for ev in resp.json().get("events", []):
                     status_obj = ev.get("status", {})
@@ -396,13 +482,17 @@ def carregar_jogos_ao_vivo():
                                 fora = c.get("team", {}).get("shortDisplayName", "Fora")
                                 placar_f = score
                                 
+                        confronto = f"{casa} vs {fora}"
+                        if any(j["confronto"] == confronto for j in lista):
+                            continue
+                            
                         analise = calcular_ao_vivo_sniper(casa, fora, placar_c, placar_f, tempo_jogo)
                         lista.append({
                             "id": f"vivo_{jogo_id}",
                             "torneio": nome_liga,
                             "tempo": tempo_jogo,
                             "placar": f"{placar_c} x {placar_f}",
-                            "confronto": f"{casa} vs {fora}",
+                            "confronto": confronto,
                             "tem_entrada": analise["tem_entrada"],
                             "mercado": analise["mercado"],
                             "odd": analise["odd"],
@@ -445,7 +535,6 @@ with st.sidebar:
     st.caption("💡 Simples: 1.0 unid. | Duplas: 0.5 unid.")
     conn.close()
 
-# Estado Global do Bilhete
 if "selecionados" not in st.session_state:
     st.session_state.selecionados = {}
 
@@ -455,18 +544,23 @@ if "odds_custom" not in st.session_state:
 # ==========================================
 # 6. MODAL DO BILHETE (DRAWER SUSPENSO)
 # ==========================================
-# Compatibilidade segura com Streamlit Dialog
-if not hasattr(st, "dialog"):
-    def dialog_decorator(title, width="large"):
-        def wrapper(func):
-            def inner(*args, **kwargs):
+# Compatibilidade total com Streamlit Dialog
+def render_modal_dialog(title="📑 Bilhete de Apostas — Radar Pro"):
+    if hasattr(st, "dialog"):
+        return st.dialog(title, width="large")
+    elif hasattr(st, "experimental_dialog"):
+        return st.experimental_dialog(title)
+    else:
+        def fallback(func):
+            def wrapper(*args, **kwargs):
                 with st.expander(title, expanded=True):
                     func(*args, **kwargs)
-            return inner
-        return wrapper
-    st.dialog = dialog_decorator
+            return wrapper
+        return fallback
 
-@st.dialog("📑 Bilhete de Apostas — Radar Pro", width="large")
+dialog_slip = render_modal_dialog()
+
+@dialog_slip
 def abrir_bilhete_modal(usuario, unidade_val):
     itens = list(st.session_state.selecionados.values())
     
@@ -575,7 +669,7 @@ tab_pre, tab_vivo, tab_diario, tab_stats = st.tabs([
 ])
 
 # ----------------------------------------------------
-# ABA 1: PRÉ-JOGO (LARGURA TOTAL & RESPONSIVO)
+# ABA 1: PRÉ-JOGO COM BUSCA INTELIGENTE DE GRADE
 # ----------------------------------------------------
 with tab_pre:
     fuso_br = timezone(timedelta(hours=-3))
@@ -604,7 +698,7 @@ with tab_pre:
     st.markdown("---")
     
     if df_pre_view.empty:
-        st.info(f"Nenhuma partida agendada encontrada para {aba_data.lower()} nas ligas monitoradas.")
+        st.info("Nenhuma partida agendada encontrada no momento. Atualize em instantes!")
     else:
         for _, row in df_pre_view.iterrows():
             cabecalho = f"""
@@ -632,13 +726,13 @@ with tab_pre:
             st.markdown("<hr style='border: 0; border-top: 1px solid #1f2937; margin: 8px 0 16px 0;'>", unsafe_allow_html=True)
 
 # ----------------------------------------------------
-# ABA 2: RADAR AO VIVO (SNIPER & REATIVO)
+# ABA 2: RADAR AO VIVO (SNIPER & 24H)
 # ----------------------------------------------------
 with tab_vivo:
     col_v_top1, col_v_top2 = st.columns([3, 1])
     with col_v_top1:
         st.markdown("### ⚡ Radar Ao Vivo (Modo Sniper)")
-        st.caption("Monitoramento dinâmico: o algoritmo só destrava entradas quando a odd valoriza nas janelas seguras.")
+        st.caption("Monitoramento dinâmico em tempo real: o algoritmo só destrava entradas quando a odd valoriza nas janelas seguras.")
     with col_v_top2:
         if st.button("🔄 Atualizar Radar Ao Vivo", use_container_width=True):
             st.cache_data.clear()
@@ -647,7 +741,7 @@ with tab_vivo:
     df_vivo = carregar_jogos_ao_vivo()
     
     if df_vivo.empty:
-        st.info("Nenhuma partida em andamento nas ligas monitoradas neste exato momento.")
+        st.info("Nenhuma partida em andamento no momento. Assim que a bola rolar nas ligas monitoradas, os jogos entrarão aqui automaticamente.")
     else:
         for _, row_v in df_vivo.iterrows():
             if row_v["tem_entrada"]:
