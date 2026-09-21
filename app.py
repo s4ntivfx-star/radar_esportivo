@@ -1,7 +1,8 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
-sqlite3 import requests
+import sqlite3
+import requests
 import hashlib
 import os
 from datetime import datetime, timezone, timedelta
@@ -1260,8 +1261,7 @@ with tab_alt:
     
     df_alt = carregar_jogos_alternativos()
     
-    # Filtro opcional por modalidade
-    filtro_esporte = st.selectbox("Filtrar por Esporte:", ["Todos os Esportes", "🎾 Tênis (ATP Beijing)", "🎾 Tênis (WTA Wuhan)", "🏈 Futebol Americano (NFL)", "⚾ Beisebol (MLB)"], index=0)
+    filtro_esporte = st.selectbox("Filtrar por Esporte:", ["Todos os Esportes", "🎾 Tênis", "🏈 Futebol Americano (NFL)", "⚾ Beisebol (MLB)"], index=0)
     
     if filtro_esporte != "Todos os Esportes":
         df_alt_view = df_alt[df_alt["esporte"].str.contains(filtro_esporte.split()[1])]
