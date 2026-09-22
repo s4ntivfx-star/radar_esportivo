@@ -54,66 +54,6 @@ st.markdown("""
         margin-bottom: 12px;
         box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
     }
-    .card-top {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin-bottom: 12px;
-    }
-    .teams-container {
-        display: flex;
-        align-items: center;
-        justify-content: space-around;
-        padding: 8px 0 14px 0;
-        border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-    }
-    .team-cell {
-        display: flex;
-        align-items: center;
-        gap: 12px;
-        width: 42%;
-    }
-    .team-cell.away {
-        justify-content: flex-end;
-    }
-    .team-logo-img {
-        width: 38px;
-        height: 38px;
-        object-fit: contain;
-        filter: drop-shadow(0 2px 5px rgba(0,0,0,0.5));
-    }
-    .team-name-text {
-        font-size: 1.15rem;
-        font-weight: 800;
-        color: #ffffff;
-    }
-    .vs-cell {
-        background: rgba(15, 23, 42, 0.8);
-        border: 1px solid #334155;
-        padding: 4px 12px;
-        border-radius: 20px;
-        font-size: 0.8rem;
-        font-weight: 800;
-        color: #94a3b8;
-    }
-    .market-row {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        flex-wrap: wrap;
-        gap: 8px;
-        margin: 12px 0 8px 0;
-    }
-    .market-label {
-        font-size: 1.05rem;
-        font-weight: 700;
-        color: #38bdf8;
-    }
-    .pills-group {
-        display: flex;
-        gap: 8px;
-        align-items: center;
-    }
     .pill-odd {
         background-color: #0f172a;
         color: #38bdf8;
@@ -122,32 +62,6 @@ st.markdown("""
         border-radius: 8px;
         font-size: 0.9rem;
         font-weight: 800;
-    }
-    .badge-torneio {
-        background-color: #1e293b;
-        color: #cbd5e1 !important;
-        padding: 4px 10px;
-        border-radius: 6px;
-        font-size: 0.8rem;
-        font-weight: 700;
-        border: 1px solid #334155;
-    }
-    .badge-hora {
-        background-color: #0284c7;
-        color: #ffffff !important;
-        padding: 4px 10px;
-        border-radius: 6px;
-        font-size: 0.8rem;
-        font-weight: 700;
-    }
-    .badge-ev {
-        background-color: #065f46;
-        color: #6ee7b7 !important;
-        padding: 4px 10px;
-        border-radius: 6px;
-        font-size: 0.85rem;
-        font-weight: 800;
-        border: 1px solid #059669;
     }
 
     /* PÍLULA FLUTUANTE DO BILHETE */
@@ -263,31 +177,11 @@ usuario_ativo = st.session_state.usuario_ativo
 def calcular_pre_jogo(casa, fora, torneio):
     chave = f"{casa}_{fora}_{torneio}"
     hash_val = int(hashlib.md5(chave.encode()).hexdigest(), 16)
-    
     catalogo = [
-        {
-            "mercado": "Mais de 0.5 Gols no 1º Tempo (HT)",
-            "odd": 1.48,
-            "prob": 0.81,
-            "ev": 19.8,
-            "l10_pattern": "🟩 🟩 🟩 🟩 🟩 🟩 🟩 🟩 🟥 🟩",
-            "l10_pct": "90%",
-            "projecao": "Projeção: 1.3 gols no 1T",
-            "raio_x": [f"{casa} registou golos na primeira parte em 9 dos últimos 10 jogos."]
-        },
-        {
-            "mercado": "Mais de 1.5 Gols no Jogo",
-            "odd": 1.38,
-            "prob": 0.84,
-            "ev": 15.9,
-            "l10_pattern": "🟩 🟩 🟩 🟩 🟩 🟩 🟩 🟩 🟩 🟥",
-            "l10_pct": "90%",
-            "projecao": "Projeção: 2.7 gols esperados",
-            "raio_x": ["Volume ofensivo expressivo combinado."]
-        }
+        {"mercado": "Mais de 0.5 Gols no 1º Tempo (HT)", "odd": 1.48, "prob": 0.81, "ev": 19.8, "l10_pattern": "🟩 🟩 🟩 🟩 🟩 🟩 🟩 🟩 🟥 🟩", "l10_pct": "90%", "projecao": "Projeção: 1.3 gols no 1T", "raio_x": [f"{casa} registou golos na primeira parte em 9 dos últimos 10 jogos."]},
+        {"mercado": "Mais de 1.5 Gols no Jogo", "odd": 1.38, "prob": 0.84, "ev": 15.9, "l10_pattern": "🟩 🟩 🟩 🟩 🟩 🟩 🟩 🟩 🟩 🟥", "l10_pct": "90%", "projecao": "Projeção: 2.7 gols esperados", "raio_x": ["Volume ofensivo expressivo combinado."]}
     ]
-    escolha = catalogo[hash_val % len(catalogo)]
-    return escolha
+    return catalogo[hash_val % len(catalogo)]
 
 ESCUDO_PADRAO = "https://cdn-icons-png.flaticon.com/512/861/861512.png"
 
@@ -411,7 +305,7 @@ def abrir_bilhete_modal(usuario, unidade_val):
 # ==========================================
 # 7. ABAS PRINCIPAIS
 # ==========================================
-tab_pre, tab_esoccer, tab_diario = st.tabs(["🎯 Futebol Pré-Jogo", "🎮 e-Soccer Betano (Auto-Complete)", "📋 Diário & Banca"])
+tab_pre, tab_esoccer, tab_diario = st.tabs(["🎯 Futebol Pré-Jogo", "🎮 e-Soccer Betano (Piloto Primeiro)", "📋 Diário & Banca"])
 
 with tab_pre:
     st.markdown("### 🎯 Análise Pré-Jogo")
@@ -436,34 +330,50 @@ with tab_pre:
                 st.rerun()
 
 # ----------------------------------------------------
-# e-SOCCER INSTANTÂNEO COM AUTO-COMPLETE
+# e-SOCCER INSTANTÂNEO COM PILOTO EM PRIMEIRO LUGAR
 # ----------------------------------------------------
 with tab_esoccer:
-    st.markdown("### 🎮 e-Soccer Analytics — Seleção Instantânea")
-    st.caption("Basta começar a escrever (ou selecionar) o nome do jogador nas caixas abaixo. O terminal calcula tudo em tempo real para as linhas da Betano.")
+    st.markdown("### 🎮 e-Soccer Analytics — Piloto / Jogador em Primeiro")
+    st.caption("Selecione a liga e pesquise pelo **nome do piloto** (ex: chevare, BlackStar98, Lufy). O formato exato é [Piloto] ([Time]).")
     
-    # Base de pilotos simulada/cadastrada para auto-complete instantâneo (podes expandir com os teus favoritos)
-    PILOTOS_DISPONIVEIS = [
-        "Spain (Lufy)", "Argentina (ZORO)", "France (Buu)", "Brazil (Joca)", 
-        "Germany (Pex)", "England (Firminho)", "Portugal (Meltosik)", "Italy (BlackStar98)",
-        "Villarreal (BlackStar98)", "Barcelona (Revenge)", "Juventus (chevare)", "Sporting CP (Animal)"
+    categoria_jogo = st.selectbox(
+        "Selecione a Liga / Formato (Betano):",
+        [
+            "Esoccer - Battle - Liga dos Campeões - 2x4 min",
+            "Esoccer - Battle - Liga Europa - 2x4 min",
+            "Esoccer - Battle - Série A - 2x4 min",
+            "Esoccer - Battle - Internacional - 2x6 min",
+            "Esoccer - GT Leagues - 2x6 min",
+            "Esoccer - H2H GG League - 2x4 min"
+        ]
+    )
+    
+    # Lista estruturada com o PILOTO EM PRIMEIRO e o time entre parênteses
+    PILOTOS_BETTORS_ORD = [
+        "chevare (Juventus)", "Animal (Sporting CP)", "Maki (Arsenal)", "Linox (B Dortmund)",
+        "Llulle (Roma)", "Sena (Fenerbahce)", "Cira (Salzburg)", "pikalicaaa (Porto)",
+        "BlackStar98 (Villarreal)", "Revenge (Barcelona)", "Lx7ss (Sassuolo)", "SPECIAL (Roma)",
+        "Jokadinho (Juventus)", "maggett0 (Bologna)", "Dov1n (Napoli)", "Buu (France)",
+        "Lufy (Spain)", "Pex (Germany)", "Firminho (England)", "ZORO (Argentina)",
+        "Eros (AZ Alkmaar)", "Fox (RSC Anderlecht)", "Kratos (Crystal Palace)", "Crysis (Celtic Glasgow)",
+        "Thunder (Sunderland AFC)", "Penn (TSG 1899 Hoffenheim)", "Atlas (Dinamo Zagreb)", "Tiago (Stade Rennais)",
+        "VENUS (Real Madrid)", "COSMOS (FC Bayern Munchen)", "CLINICAL (England)", "INSTINCT (France)", "DEZZY (Arsenal)"
     ]
     
     col_s1, col_s2 = st.columns(2)
     with col_s1:
-        st.markdown("#### 🏠 Jogador / Time 1 (Casa)")
-        # st.selectbox com search integrado (escreves 3 letras e ele filtra na hora)
-        p1 = st.selectbox("Pesquisar Jogador 1:", PILOTOS_DISPONIVEIS, index=0, key="sel_p1")
-        gfc = st.number_input("Média Gols Feitos:", value=2.9, step=0.1, key="mg_f1")
-        gsc = st.number_input("Média Gols Sofridos:", value=1.6, step=0.1, key="mg_s1")
-        odd_p1 = st.number_input("Odd Betano (Vitória 1):", value=2.10, step=0.01, key="od_p1")
+        st.markdown("#### 🏠 Jogador / Piloto 1 (Casa)")
+        p1 = st.selectbox("Pesquisar Piloto 1:", PILOTOS_BETTORS_ORD, index=0, key="sel_p1_v3")
+        gfc = st.number_input("Média Gols Feitos:", value=2.9, step=0.1, key="mg_f1_v3")
+        gsc = st.number_input("Média Gols Sofridos:", value=1.6, step=0.1, key="mg_s1_v3")
+        odd_p1 = st.number_input("Odd Betano (Vitória 1):", value=2.10, step=0.01, key="od_p1_v3")
         
     with col_s2:
-        st.markdown("#### ✈️ Jogador / Time 2 (Fora)")
-        p2 = st.selectbox("Pesquisar Jogador 2:", PILOTOS_DISPONIVEIS, index=1, key="sel_p2")
-        gff = st.number_input("Média Gols Feitos:", value=3.2, step=0.1, key="mg_f2")
-        gsf = st.number_input("Média Gols Sofridos:", value=1.8, step=0.1, key="mg_s2")
-        odd_p2 = st.number_input("Odd Betano (Vitória 2):", value=2.45, step=0.01, key="od_p2")
+        st.markdown("#### ✈️ Jogador / Piloto 2 (Fora)")
+        p2 = st.selectbox("Pesquisar Piloto 2:", PILOTOS_BETTORS_ORD, index=1, key="sel_p2_v3")
+        gff = st.number_input("Média Gols Feitos:", value=3.2, step=0.1, key="mg_f2_v3")
+        gsf = st.number_input("Média Gols Sofridos:", value=1.8, step=0.1, key="mg_s2_v3")
+        odd_p2 = st.number_input("Odd Betano (Vitória 2):", value=2.45, step=0.01, key="od_p2_v3")
 
     st.markdown("---")
     st.markdown("#### 📊 Linha Ativa Betano & Cálculo Automático")
@@ -471,12 +381,11 @@ with tab_esoccer:
     c_m1, c_m2 = st.columns(2)
     with c_m1:
         linha_escolhida = st.selectbox("Linha de Gols (Betano):", ["Mais de 7.5 Gols", "Mais de 8.5 Gols", "Mais de 9.5 Gols", "Mais de 10.5 Gols"], index=1)
-        odd_linha = st.number_input("Odd da Linha na Betano:", value=1.65, step=0.01, key="od_linha_bet")
+        odd_linha = st.number_input("Odd da Linha na Betano:", value=1.65, step=0.01, key="od_linha_bet_v3")
     with c_m2:
-        formato = st.selectbox("Formato:", ["Battle (2x4 min)", "GT Leagues (2x6 min)"])
+        tipo_tempo = "4 min" if "2x4 min" in categoria_jogo else "6 min"
 
-    # CÁLCULO 100% AUTOMÁTICO EM TEMPO REAL (SEM BOTÃO DE GERAR)
-    fator = 1.25 if "4 min" in formato else 1.10
+    fator = 1.25 if tipo_tempo == "4 min" else 1.10
     gols_proj = round(((gfc + gff + gsc + gsf) / 2) * fator, 2)
     
     limiar = float(linha_escolhida.split()[2])
@@ -485,7 +394,7 @@ with tab_esoccer:
 
     st.markdown(f"""
     <div class="match-card" style="border-color: #38bdf8; margin-top: 15px;">
-        <h4 style="color: #38bdf8; margin-top: 0;">⚡ Projeção Instantânea em Tempo Real</h4>
+        <h4 style="color: #38bdf8; margin-top: 0;">⚡ Projeção Instantânea ({categoria_jogo})</h4>
         <p><strong>Confronto:</strong> {p1} vs {p2}</p>
         <p><strong>Média de Gols Projetada:</strong> 📊 {gols_proj} gols</p>
         <p><strong>Mercado Recomendado:</strong> 👉 <strong>{linha_escolhida}</strong> @ {odd_linha:.2f}</p>
@@ -495,12 +404,12 @@ with tab_esoccer:
     
     id_esc = f"esoccer_{p1}_{p2}"
     item_esc = {
-        "id": id_esc, "confronto": f"{p1} vs {p2}", "mercado": linha_escolhida,
+        "id": id_esc, "confronto": f"{p1} vs {p2}", "mercado": f"{linha_escolhida} ({categoria_jogo})",
         "odd": odd_linha, "raio_x": [f"Projeção: {gols_proj} gols", f"+{ev_val}% EV"]
     }
     
     ja_e = id_esc in st.session_state.selecionados
-    if st.checkbox("📥 Adicionar esta entrada do e-Soccer ao Bilhete", value=ja_e, key="chk_esc_auto"):
+    if st.checkbox("📥 Adicionar esta entrada do e-Soccer ao Bilhete", value=ja_e, key="chk_esc_auto_v3"):
         if not ja_e:
             st.session_state.selecionados[id_esc] = item_esc
             st.success("Adicionado instantaneamente ao bilhete!")
