@@ -305,7 +305,7 @@ def abrir_bilhete_modal(usuario, unidade_val):
 # ==========================================
 # 7. ABAS PRINCIPAIS
 # ==========================================
-tab_pre, tab_esoccer, tab_diario = st.tabs(["🎯 Futebol Pré-Jogo", "🎮 e-Soccer Betano (Piloto Primeiro)", "📋 Diário & Banca"])
+tab_pre, tab_esoccer, tab_diario = st.tabs(["🎯 Futebol Pré-Jogo", "🎮 e-Soccer Analytics Automático", "📋 Diário & Banca"])
 
 with tab_pre:
     st.markdown("### 🎯 Análise Pré-Jogo")
@@ -330,11 +330,11 @@ with tab_pre:
                 st.rerun()
 
 # ----------------------------------------------------
-# e-SOCCER INSTANTÂNEO COM PILOTO EM PRIMEIRO LUGAR
+# e-SOCCER AUTOMÁTICO COM RECOMENDAÇÕES INTELIGENTES
 # ----------------------------------------------------
 with tab_esoccer:
-    st.markdown("### 🎮 e-Soccer Analytics — Piloto / Jogador em Primeiro")
-    st.caption("Selecione a liga e pesquise pelo **nome do piloto** (ex: chevare, BlackStar98, Lufy). O formato exato é [Piloto] ([Time]).")
+    st.markdown("### 🎮 e-Soccer — Recomendador Automático de Apostas")
+    st.caption("Selecione os pilotos e as médias. O terminal faz os cálculos e entrega mastigadas as melhores opções de aposta em Gols e Vitória.")
     
     categoria_jogo = st.selectbox(
         "Selecione a Liga / Formato (Betano):",
@@ -348,7 +348,6 @@ with tab_esoccer:
         ]
     )
     
-    # Lista estruturada com o PILOTO EM PRIMEIRO e o time entre parênteses
     PILOTOS_BETTORS_ORD = [
         "chevare (Juventus)", "Animal (Sporting CP)", "Maki (Arsenal)", "Linox (B Dortmund)",
         "Llulle (Roma)", "Sena (Fenerbahce)", "Cira (Salzburg)", "pikalicaaa (Porto)",
@@ -362,61 +361,104 @@ with tab_esoccer:
     
     col_s1, col_s2 = st.columns(2)
     with col_s1:
-        st.markdown("#### 🏠 Jogador / Piloto 1 (Casa)")
-        p1 = st.selectbox("Pesquisar Piloto 1:", PILOTOS_BETTORS_ORD, index=0, key="sel_p1_v3")
-        gfc = st.number_input("Média Gols Feitos:", value=2.9, step=0.1, key="mg_f1_v3")
-        gsc = st.number_input("Média Gols Sofridos:", value=1.6, step=0.1, key="mg_s1_v3")
-        odd_p1 = st.number_input("Odd Betano (Vitória 1):", value=2.10, step=0.01, key="od_p1_v3")
+        st.markdown("#### 🏠 Piloto 1 (Casa)")
+        p1 = st.selectbox("Pesquisar Piloto 1:", PILOTOS_BETTORS_ORD, index=0, key="sel_p1_v4")
+        gfc = st.number_input("Média Gols Feitos (P1):", value=2.9, step=0.1, key="mg_f1_v4")
+        gsc = st.number_input("Média Gols Sofridos (P1):", value=1.6, step=0.1, key="mg_s1_v4")
+        odd_p1 = st.number_input("Odd Betano (Vitória P1):", value=2.10, step=0.01, key="od_p1_v4")
         
     with col_s2:
-        st.markdown("#### ✈️ Jogador / Piloto 2 (Fora)")
-        p2 = st.selectbox("Pesquisar Piloto 2:", PILOTOS_BETTORS_ORD, index=1, key="sel_p2_v3")
-        gff = st.number_input("Média Gols Feitos:", value=3.2, step=0.1, key="mg_f2_v3")
-        gsf = st.number_input("Média Gols Sofridos:", value=1.8, step=0.1, key="mg_s2_v3")
-        odd_p2 = st.number_input("Odd Betano (Vitória 2):", value=2.45, step=0.01, key="od_p2_v3")
+        st.markdown("#### ✈️ Piloto 2 (Fora)")
+        p2 = st.selectbox("Pesquisar Piloto 2:", PILOTOS_BETTORS_ORD, index=1, key="sel_p2_v4")
+        gff = st.number_input("Média Gols Feitos (P2):", value=3.2, step=0.1, key="mg_f2_v4")
+        gsf = st.number_input("Média Gols Sofridos (P2):", value=1.8, step=0.1, key="mg_s2_v4")
+        odd_p2 = st.number_input("Odd Betano (Vitória P2):", value=2.45, step=0.01, key="od_p2_v4")
+
+    # MÓDULO DE RECOMENDAÇÃO AUTOMÁTICA INTELIGENTE
+    tipo_tempo = "4 min" if "2x4 min" in categoria_jogo else "6 min"
+    fator = 1.25 if tipo_tempo == "4 min" else 1.10
+    
+    # Projeção de gols de cada um
+    gols_esperados_p1 = (gfc + gsf) / 2
+    gols_esperados_p2 = (gff + gsc) / 2
+    gols_total_proj = round((gols_esperados_p1 + gols_esperados_p2) * fator, 2)
+    
+    # Definição automática da melhor linha de gols
+    if gols_total_proj >= 9.5:
+        melhor_linha_gols = "Mais de 8.5 Gols"
+        odd_sugerida_gols = 1.62
+    elif gols_total_proj >= 8.0:
+        melhor_linha_gols = "Mais de 7.5 Gols"
+        odd_sugerida_gols = 1.55
+    else:
+        melhor_linha_gols = "Mais de 6.5 Gols"
+        odd_sugerida_gols = 1.45
+
+    # Veredicto automático de Vitória / 1X2
+    if odd_p1 < odd_p2 and gols_esperados_p1 > gols_esperados_p2:
+        melhor_vitoria = f"Vitória Simples ou Dupla Hipótese: {p1}"
+        odd_vitoria_ref = odd_p1
+    elif odd_p2 < odd_p1 and gols_esperados_p2 > gols_esperados_p1:
+        melhor_vitoria = f"Vitória Simples ou Dupla Hipótese: {p2}"
+        odd_vitoria_ref = odd_p2
+    else:
+        melhor_vitoria = "Confronto Equilibrado / Ambas Marcam (BTTS)"
+        odd_vitoria_ref = 1.75
 
     st.markdown("---")
-    st.markdown("#### 📊 Linha Ativa Betano & Cálculo Automático")
+    st.markdown("### 🎯 Melhores Opções de Aposta Recomendadas pelo Terminal")
     
-    c_m1, c_m2 = st.columns(2)
-    with c_m1:
-        linha_escolhida = st.selectbox("Linha de Gols (Betano):", ["Mais de 7.5 Gols", "Mais de 8.5 Gols", "Mais de 9.5 Gols", "Mais de 10.5 Gols"], index=1)
-        odd_linha = st.number_input("Odd da Linha na Betano:", value=1.65, step=0.01, key="od_linha_bet_v3")
-    with c_m2:
-        tipo_tempo = "4 min" if "2x4 min" in categoria_jogo else "6 min"
-
-    fator = 1.25 if tipo_tempo == "4 min" else 1.10
-    gols_proj = round(((gfc + gff + gsc + gsf) / 2) * fator, 2)
+    c_rec1, c_rec2 = st.columns(2)
     
-    limiar = float(linha_escolhida.split()[2])
-    prob_est = min(max((gols_proj / (limiar + 1.0)) * 100, 40.0), 92.0)
-    ev_val = round((( (prob_est/100.0) * odd_linha) - 1) * 100, 1)
-
-    st.markdown(f"""
-    <div class="match-card" style="border-color: #38bdf8; margin-top: 15px;">
-        <h4 style="color: #38bdf8; margin-top: 0;">⚡ Projeção Instantânea ({categoria_jogo})</h4>
-        <p><strong>Confronto:</strong> {p1} vs {p2}</p>
-        <p><strong>Média de Gols Projetada:</strong> 📊 {gols_proj} gols</p>
-        <p><strong>Mercado Recomendado:</strong> 👉 <strong>{linha_escolhida}</strong> @ {odd_linha:.2f}</p>
-        <p><strong>Probabilidade Estimada:</strong> {prob_est:.1f}% | <span style="color: {'#6ee7b7' if ev_val > 0 else '#fca5a5'};">+{ev_val}% EV</span></p>
-    </div>
-    """, unsafe_allow_html=True)
-    
-    id_esc = f"esoccer_{p1}_{p2}"
-    item_esc = {
-        "id": id_esc, "confronto": f"{p1} vs {p2}", "mercado": f"{linha_escolhida} ({categoria_jogo})",
-        "odd": odd_linha, "raio_x": [f"Projeção: {gols_proj} gols", f"+{ev_val}% EV"]
+    id_rec1 = f"esoccer_gols_{p1}_{p2}"
+    item_rec1 = {
+        "id": id_rec1, "confronto": f"{p1} vs {p2}", "mercado": f"{melhor_linha_gols} ({categoria_jogo})",
+        "odd": odd_sugerida_gols, "raio_x": [f"Projeção: {gols_total_proj} gols"]
     }
     
-    ja_e = id_esc in st.session_state.selecionados
-    if st.checkbox("📥 Adicionar esta entrada do e-Soccer ao Bilhete", value=ja_e, key="chk_esc_auto_v3"):
-        if not ja_e:
-            st.session_state.selecionados[id_esc] = item_esc
-            st.success("Adicionado instantaneamente ao bilhete!")
+    with c_rec1:
+        st.markdown(f"""
+        <div class="match-card" style="border-color: #38bdf8;">
+            <h4 style="color: #38bdf8; margin-top: 0;">⚽ Mercado de Gols</h4>
+            <p><strong>Sugestão:</strong> {melhor_linha_gols}</p>
+            <p><strong>Projeção do Jogo:</strong> {gols_total_proj} gols esperados</p>
+            <p><strong>Odd Média Betano:</strong> ~{odd_sugerida_gols:.2f}</p>
+        </div>
+        """, unsafe_allow_html=True)
+        ja_r1 = id_rec1 in st.session_state.selecionados
+        if st.checkbox("📥 Adicionar Sugestão de Gols ao Bilhete", value=ja_r1, key="chk_rec_gols"):
+            if not ja_r1:
+                st.session_state.selecionados[id_rec1] = item_rec1
+                st.success("Adicionado ao bilhete!")
+                st.rerun()
+        elif ja_r1:
+            del st.session_state.selecionados[id_rec1]
             st.rerun()
-    elif ja_e:
-        del st.session_state.selecionados[id_esc]
-        st.rerun()
+
+    id_rec2 = f"esoccer_vit_{p1}_{p2}"
+    item_rec2 = {
+        "id": id_rec2, "confronto": f"{p1} vs {p2}", "mercado": f"{melhor_vitoria} ({categoria_jogo})",
+        "odd": odd_vitoria_ref, "raio_x": [f"Análise de desempenho cruzada"]
+    }
+    
+    with c_rec2:
+        st.markdown(f"""
+        <div class="match-card" style="border-color: #10b981;">
+            <h4 style="color: #10b981; margin-top: 0;">🏆 Mercado de Resultado</h4>
+            <p><strong>Sugestão:</strong> {melhor_vitoria}</p>
+            <p><strong>Análise:</strong> Baseada na conversão ofensiva e solidez defensiva.</p>
+            <p><strong>Odd de Referência:</strong> ~{odd_vitoria_ref:.2f}</p>
+        </div>
+        """, unsafe_allow_html=True)
+        ja_r2 = id_rec2 in st.session_state.selecionados
+        if st.checkbox("📥 Adicionar Sugestão de Resultado ao Bilhete", value=ja_r2, key="chk_rec_vit"):
+            if not ja_r2:
+                st.session_state.selecionados[id_rec2] = item_rec2
+                st.success("Adicionado ao bilhete!")
+                st.rerun()
+        elif ja_r2:
+            del st.session_state.selecionados[id_rec2]
+            st.rerun()
 
 with tab_diario:
     st.markdown("### 📋 Diário Operacional")
