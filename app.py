@@ -378,7 +378,7 @@ def abrir_bilhete_modal(usuario, unidade_val):
         st.rerun()
 
 # ==========================================
-# 7. ABAS PRINCIPAIS (FUTEBOL REAL + e-SOCCER + DIÁRIO)
+# 7. ABAS PRINCIPAIS
 # ==========================================
 tab_pre, tab_vivo, tab_esoccer, tab_diario = st.tabs([
     "🎯 Pré-Jogo",
@@ -439,11 +439,11 @@ with tab_vivo:
                 st.rerun()
 
 # ----------------------------------------------------
-# e-SOCCER AUTOMÁTICO REATIVO (CORRIGIDO)
+# e-SOCCER REATIVO COM ATUALIZAÇÃO INSTANTÂNEA DE MÉDIAS
 # ----------------------------------------------------
 with tab_esoccer:
     st.markdown("### 🎮 e-Soccer — Recomendador Automático de Apostas")
-    st.caption("Selecione os pilotos e ajuste as médias caso queira refinar. O terminal recalcula instantaneamente as melhores opções em Gols e Vitória.")
+    st.caption("Selecione os pilotos. As médias adaptam-se automaticamente de forma reativa e o terminal entrega as melhores opções de aposta.")
     
     categoria_jogo = st.selectbox(
         "Selecione a Liga / Formato (Betano):",
@@ -457,34 +457,64 @@ with tab_esoccer:
         ]
     )
     
-    PILOTOS_BETTORS_ORD = [
-        "SPECIAL (Roma)", "Animal (Sporting CP)", "chevare (Juventus)", "Maki (Arsenal)", "Linox (B Dortmund)",
-        "Llulle (Roma)", "Sena (Fenerbahce)", "Cira (Salzburg)", "pikalicaaa (Porto)",
-        "BlackStar98 (Villarreal)", "Revenge (Barcelona)", "Lx7ss (Sassuolo)",
-        "Jokadinho (Juventus)", "maggett0 (Bologna)", "Dov1n (Napoli)", "Buu (France)",
-        "Lufy (Spain)", "Pex (Germany)", "Firminho (England)", "ZORO (Argentina)",
-        "Eros (AZ Alkmaar)", "Fox (RSC Anderlecht)", "Kratos (Crystal Palace)", "Crysis (Celtic Glasgow)",
-        "Thunder (Sunderland AFC)", "Penn (TSG 1899 Hoffenheim)", "Atlas (Dinamo Zagreb)", "Tiago (Stade Rennais)",
-        "VENUS (Real Madrid)", "COSMOS (FC Bayern Munchen)", "CLINICAL (England)", "INSTINCT (France)", "DEZZY (Arsenal)"
-    ]
+    # Banco interno com médias predefinidas por piloto para funcionamento reativo imediato
+    DADOS_PILOTOS = {
+        "SPECIAL (Roma)": {"gf": 3.4, "gs": 1.5, "odd": 1.85},
+        "Animal (Sporting CP)": {"gf": 3.1, "gs": 1.8, "odd": 2.10},
+        "chevare (Juventus)": {"gf": 3.6, "gs": 1.3, "odd": 1.70},
+        "Maki (Arsenal)": {"gf": 2.8, "gs": 2.0, "odd": 2.40},
+        "Linox (B Dortmund)": {"gf": 3.0, "gs": 1.7, "odd": 2.15},
+        "Llulle (Roma)": {"gf": 2.7, "gs": 1.9, "odd": 2.50},
+        "Sena (Fenerbahce)": {"gf": 3.3, "gs": 1.6, "odd": 1.95},
+        "Cira (Salzburg)": {"gf": 2.9, "gs": 1.8, "odd": 2.30},
+        "pikalicaaa (Porto)": {"gf": 3.5, "gs": 1.4, "odd": 1.80},
+        "BlackStar98 (Villarreal)": {"gf": 3.8, "gs": 1.2, "odd": 1.55},
+        "Revenge (Barcelona)": {"gf": 3.2, "gs": 1.7, "odd": 2.00},
+        "Lx7ss (Sassuolo)": {"gf": 2.6, "gs": 2.1, "odd": 2.70},
+        "Jokadinho (Juventus)": {"gf": 3.4, "gs": 1.5, "odd": 1.85},
+        "maggett0 (Bologna)": {"gf": 2.9, "gs": 1.9, "odd": 2.35},
+        "Dov1n (Napoli)": {"gf": 3.1, "gs": 1.6, "odd": 2.05},
+        "Buu (France)": {"gf": 3.7, "gs": 1.3, "odd": 1.65},
+        "Lufy (Spain)": {"gf": 3.0, "gs": 1.8, "odd": 2.20},
+        "Pex (Germany)": {"gf": 2.8, "gs": 1.9, "odd": 2.45},
+        "Firminho (England)": {"gf": 3.2, "gs": 1.5, "odd": 1.90},
+        "ZORO (Argentina)": {"gf": 3.5, "gs": 1.4, "odd": 1.75},
+        "Eros (AZ Alkmaar)": {"gf": 2.9, "gs": 1.7, "odd": 2.25},
+        "Fox (RSC Anderlecht)": {"gf": 3.1, "gs": 1.6, "odd": 2.05},
+        "Kratos (Crystal Palace)": {"gf": 2.7, "gs": 2.0, "odd": 2.60},
+        "Crysis (Celtic Glasgow)": {"gf": 3.0, "gs": 1.8, "odd": 2.15},
+        "Thunder (Sunderland AFC)": {"gf": 3.6, "gs": 1.3, "odd": 1.70},
+        "Penn (TSG 1899 Hoffenheim)": {"gf": 2.8, "gs": 1.9, "odd": 2.40},
+        "Atlas (Dinamo Zagreb)": {"gf": 3.2, "gs": 1.6, "odd": 1.95},
+        "Tiago (Stade Rennais)": {"gf": 3.0, "gs": 1.7, "odd": 2.10},
+        "VENUS (Real Madrid)": {"gf": 3.7, "gs": 1.2, "odd": 1.60},
+        "COSMOS (FC Bayern Munchen)": {"gf": 3.4, "gs": 1.5, "odd": 1.85},
+        "CLINICAL (England)": {"gf": 3.1, "gs": 1.6, "odd": 2.00},
+        "INSTINCT (France)": {"gf": 2.9, "gs": 1.8, "odd": 2.30},
+        "DEZZY (Arsenal)": {"gf": 3.3, "gs": 1.4, "odd": 1.90}
+    }
+    
+    lista_pilotos = list(DADOS_PILOTOS.keys())
     
     col_s1, col_s2 = st.columns(2)
     with col_s1:
         st.markdown("#### 🏠 Piloto 1 (Casa)")
-        p1 = st.selectbox("Pesquisar Piloto 1:", PILOTOS_BETTORS_ORD, index=0, key="sel_p1_v5")
-        gfc = st.number_input("Média Gols Feitos (P1):", value=3.1, step=0.1, key=f"mg_f1_{p1}")
-        gsc = st.number_input("Média Gols Sofridos (P1):", value=1.4, step=0.1, key=f"mg_s1_{p1}")
-        odd_p1 = st.number_input("Odd Betano (Vitória P1):", value=1.95, step=0.01, key=f"od_p1_{p1}")
+        p1 = st.selectbox("Pesquisar Piloto 1:", lista_pilotos, index=0, key="sel_p1_v6")
+        defaults_p1 = DADOS_PILOTOS[p1]
+        gfc = st.number_input("Média Gols Feitos (P1):", value=defaults_p1["gf"], step=0.1, key=f"gf1_{p1}")
+        gsc = st.number_input("Média Gols Sofridos (P1):", value=defaults_p1["gs"], step=0.1, key=f"gs1_{p1}")
+        odd_p1 = st.number_input("Odd Betano (Vitória P1):", value=defaults_p1["odd"], step=0.01, key=f"od1_{p1}")
         
     with col_s2:
         st.markdown("#### ✈️ Piloto 2 (Fora)")
-        p2 = st.selectbox("Pesquisar Piloto 2:", PILOTOS_BETTORS_ORD, index=1, key="sel_p2_v5")
-        gff = st.number_input("Média Gols Feitos (P2):", value=2.7, step=0.1, key=f"mg_f2_{p2}")
-        gsf = st.number_input("Média Gols Sofridos (P2):", value=1.8, step=0.1, key=f"mg_s2_{p2}")
-        odd_p2 = st.number_input("Odd Betano (Vitória P2):", value=3.10, step=0.01, key=f"od_p2_{p2}")
+        p2 = st.selectbox("Pesquisar Piloto 2:", lista_pilotos, index=1, key="sel_p2_v6")
+        defaults_p2 = DADOS_PILOTOS[p2]
+        gff = st.number_input("Média Gols Feitos (P2):", value=defaults_p2["gf"], step=0.1, key=f"gf2_{p2}")
+        gsf = st.number_input("Média Gols Sofridos (P2):", value=defaults_p2["gs"], step=0.1, key=f"gs2_{p2}")
+        odd_p2 = st.number_input("Odd Betano (Vitória P2):", value=defaults_p2["odd"], step=0.01, key=f"od2_{p2}")
 
     if p1 == p2:
-        st.warning("⚠️ Selecionou o mesmo piloto para ambos os lados. Por favor, escolha pilotos diferentes para efetuar a projeção correta.")
+        st.warning("⚠️ Selecionou o mesmo piloto para ambos os lados. Escolha pilotos diferentes para efetuar a projeção.")
     else:
         tipo_tempo = "4 min" if "2x4 min" in categoria_jogo else "6 min"
         fator = 1.25 if tipo_tempo == "4 min" else 1.10
@@ -534,7 +564,7 @@ with tab_esoccer:
             </div>
             """, unsafe_allow_html=True)
             ja_r1 = id_rec1 in st.session_state.selecionados
-            if st.checkbox("📥 Adicionar Sugestão de Gols ao Bilhete", value=ja_r1, key="chk_rec_gols_v5"):
+            if st.checkbox("📥 Adicionar Sugestão de Gols ao Bilhete", value=ja_r1, key="chk_rec_gols_v6"):
                 if not ja_r1:
                     st.session_state.selecionados[id_rec1] = item_rec1
                     st.success("Adicionado ao bilhete!")
@@ -559,7 +589,7 @@ with tab_esoccer:
             </div>
             """, unsafe_allow_html=True)
             ja_r2 = id_rec2 in st.session_state.selecionados
-            if st.checkbox("📥 Adicionar Sugestão de Resultado ao Bilhete", value=ja_r2, key="chk_rec_vit_v5"):
+            if st.checkbox("📥 Adicionar Sugestão de Resultado ao Bilhete", value=ja_r2, key="chk_rec_vit_v6"):
                 if not ja_r2:
                     st.session_state.selecionados[id_rec2] = item_rec2
                     st.success("Adicionado ao bilhete!")
