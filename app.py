@@ -54,6 +54,66 @@ st.markdown("""
         margin-bottom: 12px;
         box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
     }
+    .card-top {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 12px;
+    }
+    .teams-container {
+        display: flex;
+        align-items: center;
+        justify-content: space-around;
+        padding: 8px 0 14px 0;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    }
+    .team-cell {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        width: 42%;
+    }
+    .team-cell.away {
+        justify-content: flex-end;
+    }
+    .team-logo-img {
+        width: 38px;
+        height: 38px;
+        object-fit: contain;
+        filter: drop-shadow(0 2px 5px rgba(0,0,0,0.5));
+    }
+    .team-name-text {
+        font-size: 1.15rem;
+        font-weight: 800;
+        color: #ffffff;
+    }
+    .vs-cell {
+        background: rgba(15, 23, 42, 0.8);
+        border: 1px solid #334155;
+        padding: 4px 12px;
+        border-radius: 20px;
+        font-size: 0.8rem;
+        font-weight: 800;
+        color: #94a3b8;
+    }
+    .market-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin: 12px 0 8px 0;
+    }
+    .market-label {
+        font-size: 1.05rem;
+        font-weight: 700;
+        color: #38bdf8;
+    }
+    .pills-group {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+    }
     .pill-odd {
         background-color: #0f172a;
         color: #38bdf8;
@@ -62,6 +122,32 @@ st.markdown("""
         border-radius: 8px;
         font-size: 0.9rem;
         font-weight: 800;
+    }
+    .badge-torneio {
+        background-color: #1e293b;
+        color: #cbd5e1 !important;
+        padding: 4px 10px;
+        border-radius: 6px;
+        font-size: 0.8rem;
+        font-weight: 700;
+        border: 1px solid #334155;
+    }
+    .badge-hora {
+        background-color: #0284c7;
+        color: #ffffff !important;
+        padding: 4px 10px;
+        border-radius: 6px;
+        font-size: 0.8rem;
+        font-weight: 700;
+    }
+    .badge-ev {
+        background-color: #065f46;
+        color: #6ee7b7 !important;
+        padding: 4px 10px;
+        border-radius: 6px;
+        font-size: 0.85rem;
+        font-weight: 800;
+        border: 1px solid #059669;
     }
 
     /* PÍLULA FLUTUANTE DO BILHETE */
@@ -172,13 +258,16 @@ if not st.session_state.usuario_ativo:
 usuario_ativo = st.session_state.usuario_ativo
 
 # ==========================================
-# 4. MOTORES QUANTITATIVOS (FUTEBOL REAL)
+# 4. MOTORES QUANTITATIVOS (FUTEBOL REAL + FEMININO)
 # ==========================================
 LIGAS_ESPN = {
     "Brasileirão Série A": "bra.1",
     "Premier League": "eng.1",
     "La Liga": "esp.1",
-    "Copa Libertadores": "conmebol.libertadores"
+    "Copa Libertadores": "conmebol.libertadores",
+    "Feminino - NWSL (EUA)": "usa.nwsl",
+    "Feminino - Liga dos Campeões": "uefa.champions.women",
+    "Feminino - Brasileirão A1": "bra.women.1"
 }
 
 ESCUDO_PADRAO = "https://cdn-icons-png.flaticon.com/512/861/861512.png"
@@ -380,15 +469,14 @@ def abrir_bilhete_modal(usuario, unidade_val):
 # ==========================================
 # 7. ABAS PRINCIPAIS
 # ==========================================
-tab_pre, tab_vivo, tab_esoccer, tab_diario = st.tabs([
-    "🎯 Pré-Jogo",
+tab_pre, tab_vivo, tab_diario = st.tabs([
+    "🎯 Pré-Jogo (Masculino & Feminino)",
     "⚡ Ao Vivo",
-    "🎮 e-Soccer Automático",
     "📋 Diário & Banca"
 ])
 
 with tab_pre:
-    st.markdown("### 🎯 Análise Pré-Jogo (+EV)")
+    st.markdown("### 🎯 Análise Pré-Jogo (+EV) — Futebol Masculino & Feminino")
     fuso_br = timezone(timedelta(hours=-3))
     data_hoje_dt = datetime.now(fuso_br)
     c_d1, c_d2 = st.columns([1.5, 2.5])
@@ -403,8 +491,28 @@ with tab_pre:
         for _, row in df_pre.iterrows():
             st.markdown(f"""
             <div class="match-card">
-                <strong>{row['torneio']}</strong> ({row['horario']}) | {row['confronto']}<br>
-                <span style="color: #38bdf8;">👉 {row['mercado']}</span> (Ref: {row['odd']:.2f} | <span style="color: #6ee7b7;">+{row['ev']}% EV</span>)
+                <div class="card-top">
+                    <span class="badge-torneio">{row['torneio']}</span>
+                    <span class="badge-hora">⏰ {row['horario']}</span>
+                </div>
+                <div class="teams-container">
+                    <div class="team-cell">
+                        <img src="{row['logo_casa']}" class="team-logo-img"/>
+                        <span class="team-name-text">{row['casa']}</span>
+                    </div>
+                    <div class="vs-cell">VS</div>
+                    <div class="team-cell away">
+                        <span class="team-name-text">{row['fora']}</span>
+                        <img src="{row['logo_fora']}" class="team-logo-img"/>
+                    </div>
+                </div>
+                <div class="market-row">
+                    <span class="market-label">👉 Principal: {row['mercado']}</span>
+                    <div class="pills-group">
+                        <span class="pill-odd">Ref: {row['odd']:.2f}</span>
+                        <span class="badge-ev">+{row['ev']}% EV</span>
+                    </div>
+                </div>
             </div>
             """, unsafe_allow_html=True)
             ja = row['id'] in st.session_state.selecionados
@@ -436,166 +544,6 @@ with tab_vivo:
                     st.rerun()
             elif ja_v:
                 del st.session_state.selecionados[row_v['id']]
-                st.rerun()
-
-# ----------------------------------------------------
-# e-SOCCER REATIVO COM ATUALIZAÇÃO INSTANTÂNEA DE MÉDIAS
-# ----------------------------------------------------
-with tab_esoccer:
-    st.markdown("### 🎮 e-Soccer — Recomendador Automático de Apostas")
-    st.caption("Selecione os pilotos. As médias adaptam-se automaticamente de forma reativa e o terminal entrega as melhores opções de aposta.")
-    
-    categoria_jogo = st.selectbox(
-        "Selecione a Liga / Formato (Betano):",
-        [
-            "Esoccer - Battle - Liga dos Campeões - 2x4 min",
-            "Esoccer - Battle - Liga Europa - 2x4 min",
-            "Esoccer - Battle - Série A - 2x4 min",
-            "Esoccer - Battle - Internacional - 2x6 min",
-            "Esoccer - GT Leagues - 2x6 min",
-            "Esoccer - H2H GG League - 2x4 min"
-        ]
-    )
-    
-    # Banco interno com médias predefinidas por piloto para funcionamento reativo imediato
-    DADOS_PILOTOS = {
-        "SPECIAL (Roma)": {"gf": 3.4, "gs": 1.5, "odd": 1.85},
-        "Animal (Sporting CP)": {"gf": 3.1, "gs": 1.8, "odd": 2.10},
-        "chevare (Juventus)": {"gf": 3.6, "gs": 1.3, "odd": 1.70},
-        "Maki (Arsenal)": {"gf": 2.8, "gs": 2.0, "odd": 2.40},
-        "Linox (B Dortmund)": {"gf": 3.0, "gs": 1.7, "odd": 2.15},
-        "Llulle (Roma)": {"gf": 2.7, "gs": 1.9, "odd": 2.50},
-        "Sena (Fenerbahce)": {"gf": 3.3, "gs": 1.6, "odd": 1.95},
-        "Cira (Salzburg)": {"gf": 2.9, "gs": 1.8, "odd": 2.30},
-        "pikalicaaa (Porto)": {"gf": 3.5, "gs": 1.4, "odd": 1.80},
-        "BlackStar98 (Villarreal)": {"gf": 3.8, "gs": 1.2, "odd": 1.55},
-        "Revenge (Barcelona)": {"gf": 3.2, "gs": 1.7, "odd": 2.00},
-        "Lx7ss (Sassuolo)": {"gf": 2.6, "gs": 2.1, "odd": 2.70},
-        "Jokadinho (Juventus)": {"gf": 3.4, "gs": 1.5, "odd": 1.85},
-        "maggett0 (Bologna)": {"gf": 2.9, "gs": 1.9, "odd": 2.35},
-        "Dov1n (Napoli)": {"gf": 3.1, "gs": 1.6, "odd": 2.05},
-        "Buu (France)": {"gf": 3.7, "gs": 1.3, "odd": 1.65},
-        "Lufy (Spain)": {"gf": 3.0, "gs": 1.8, "odd": 2.20},
-        "Pex (Germany)": {"gf": 2.8, "gs": 1.9, "odd": 2.45},
-        "Firminho (England)": {"gf": 3.2, "gs": 1.5, "odd": 1.90},
-        "ZORO (Argentina)": {"gf": 3.5, "gs": 1.4, "odd": 1.75},
-        "Eros (AZ Alkmaar)": {"gf": 2.9, "gs": 1.7, "odd": 2.25},
-        "Fox (RSC Anderlecht)": {"gf": 3.1, "gs": 1.6, "odd": 2.05},
-        "Kratos (Crystal Palace)": {"gf": 2.7, "gs": 2.0, "odd": 2.60},
-        "Crysis (Celtic Glasgow)": {"gf": 3.0, "gs": 1.8, "odd": 2.15},
-        "Thunder (Sunderland AFC)": {"gf": 3.6, "gs": 1.3, "odd": 1.70},
-        "Penn (TSG 1899 Hoffenheim)": {"gf": 2.8, "gs": 1.9, "odd": 2.40},
-        "Atlas (Dinamo Zagreb)": {"gf": 3.2, "gs": 1.6, "odd": 1.95},
-        "Tiago (Stade Rennais)": {"gf": 3.0, "gs": 1.7, "odd": 2.10},
-        "VENUS (Real Madrid)": {"gf": 3.7, "gs": 1.2, "odd": 1.60},
-        "COSMOS (FC Bayern Munchen)": {"gf": 3.4, "gs": 1.5, "odd": 1.85},
-        "CLINICAL (England)": {"gf": 3.1, "gs": 1.6, "odd": 2.00},
-        "INSTINCT (France)": {"gf": 2.9, "gs": 1.8, "odd": 2.30},
-        "DEZZY (Arsenal)": {"gf": 3.3, "gs": 1.4, "odd": 1.90}
-    }
-    
-    lista_pilotos = list(DADOS_PILOTOS.keys())
-    
-    col_s1, col_s2 = st.columns(2)
-    with col_s1:
-        st.markdown("#### 🏠 Piloto 1 (Casa)")
-        p1 = st.selectbox("Pesquisar Piloto 1:", lista_pilotos, index=0, key="sel_p1_v6")
-        defaults_p1 = DADOS_PILOTOS[p1]
-        gfc = st.number_input("Média Gols Feitos (P1):", value=defaults_p1["gf"], step=0.1, key=f"gf1_{p1}")
-        gsc = st.number_input("Média Gols Sofridos (P1):", value=defaults_p1["gs"], step=0.1, key=f"gs1_{p1}")
-        odd_p1 = st.number_input("Odd Betano (Vitória P1):", value=defaults_p1["odd"], step=0.01, key=f"od1_{p1}")
-        
-    with col_s2:
-        st.markdown("#### ✈️ Piloto 2 (Fora)")
-        p2 = st.selectbox("Pesquisar Piloto 2:", lista_pilotos, index=1, key="sel_p2_v6")
-        defaults_p2 = DADOS_PILOTOS[p2]
-        gff = st.number_input("Média Gols Feitos (P2):", value=defaults_p2["gf"], step=0.1, key=f"gf2_{p2}")
-        gsf = st.number_input("Média Gols Sofridos (P2):", value=defaults_p2["gs"], step=0.1, key=f"gs2_{p2}")
-        odd_p2 = st.number_input("Odd Betano (Vitória P2):", value=defaults_p2["odd"], step=0.01, key=f"od2_{p2}")
-
-    if p1 == p2:
-        st.warning("⚠️ Selecionou o mesmo piloto para ambos os lados. Escolha pilotos diferentes para efetuar a projeção.")
-    else:
-        tipo_tempo = "4 min" if "2x4 min" in categoria_jogo else "6 min"
-        fator = 1.25 if tipo_tempo == "4 min" else 1.10
-        
-        gols_esperados_p1 = (gfc + gsf) / 2
-        gols_esperados_p2 = (gff + gsc) / 2
-        gols_total_proj = round((gols_esperados_p1 + gols_esperados_p2) * fator, 2)
-        
-        if gols_total_proj >= 9.5:
-            melhor_linha_gols = "Mais de 8.5 Gols"
-            odd_sugerida_gols = 1.62
-        elif gols_total_proj >= 8.0:
-            melhor_linha_gols = "Mais de 7.5 Gols"
-            odd_sugerida_gols = 1.55
-        else:
-            melhor_linha_gols = "Mais de 6.5 Gols"
-            odd_sugerida_gols = 1.45
-
-        if odd_p1 < odd_p2 and gols_esperados_p1 > gols_esperados_p2:
-            melhor_vitoria = f"Vitória Simples ou Dupla Hipótese: {p1}"
-            odd_vitoria_ref = odd_p1
-        elif odd_p2 < odd_p1 and gols_esperados_p2 > gols_esperados_p1:
-            melhor_vitoria = f"Vitória Simples ou Dupla Hipótese: {p2}"
-            odd_vitoria_ref = odd_p2
-        else:
-            melhor_vitoria = "Confronto Equilibrado / Ambas Marcam (BTTS)"
-            odd_vitoria_ref = 1.75
-
-        st.markdown("---")
-        st.markdown("### 🎯 Melhores Opções de Aposta Recomendadas pelo Terminal")
-        
-        c_rec1, c_rec2 = st.columns(2)
-        
-        id_rec1 = f"esoccer_gols_{p1}_{p2}"
-        item_rec1 = {
-            "id": id_rec1, "confronto": f"{p1} vs {p2}", "mercado": f"{melhor_linha_gols} ({categoria_jogo})",
-            "odd": odd_sugerida_gols, "raio_x": [f"Projeção: {gols_total_proj} gols"]
-        }
-        
-        with c_rec1:
-            st.markdown(f"""
-            <div class="match-card" style="border-color: #38bdf8;">
-                <h4 style="color: #38bdf8; margin-top: 0;">⚽ Mercado de Gols</h4>
-                <p><strong>Sugestão:</strong> {melhor_linha_gols}</p>
-                <p><strong>Projeção do Jogo:</strong> {gols_total_proj} gols esperados</p>
-                <p><strong>Odd Média Betano:</strong> ~{odd_sugerida_gols:.2f}</p>
-            </div>
-            """, unsafe_allow_html=True)
-            ja_r1 = id_rec1 in st.session_state.selecionados
-            if st.checkbox("📥 Adicionar Sugestão de Gols ao Bilhete", value=ja_r1, key="chk_rec_gols_v6"):
-                if not ja_r1:
-                    st.session_state.selecionados[id_rec1] = item_rec1
-                    st.success("Adicionado ao bilhete!")
-                    st.rerun()
-            elif ja_r1:
-                del st.session_state.selecionados[id_rec1]
-                st.rerun()
-
-        id_rec2 = f"esoccer_vit_{p1}_{p2}"
-        item_rec2 = {
-            "id": id_rec2, "confronto": f"{p1} vs {p2}", "mercado": f"{melhor_vitoria} ({categoria_jogo})",
-            "odd": odd_vitoria_ref, "raio_x": [f"Análise de desempenho cruzada"]
-        }
-        
-        with c_rec2:
-            st.markdown(f"""
-            <div class="match-card" style="border-color: #10b981;">
-                <h4 style="color: #10b981; margin-top: 0;">🏆 Mercado de Resultado</h4>
-                <p><strong>Sugestão:</strong> {melhor_vitoria}</p>
-                <p><strong>Análise:</strong> Baseada na conversão ofensiva e solidez defensiva.</p>
-                <p><strong>Odd de Referência:</strong> ~{odd_vitoria_ref:.2f}</p>
-            </div>
-            """, unsafe_allow_html=True)
-            ja_r2 = id_rec2 in st.session_state.selecionados
-            if st.checkbox("📥 Adicionar Sugestão de Resultado ao Bilhete", value=ja_r2, key="chk_rec_vit_v6"):
-                if not ja_r2:
-                    st.session_state.selecionados[id_rec2] = item_rec2
-                    st.success("Adicionado ao bilhete!")
-                    st.rerun()
-            elif ja_r2:
-                del st.session_state.selecionados[id_rec2]
                 st.rerun()
 
 with tab_diario:
