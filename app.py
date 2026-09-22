@@ -439,11 +439,11 @@ with tab_vivo:
                 st.rerun()
 
 # ----------------------------------------------------
-# e-SOCCER AUTOMÁTICO COM RECOMENDAÇÕES INTELIGENTES
+# e-SOCCER AUTOMÁTICO REATIVO (CORRIGIDO)
 # ----------------------------------------------------
 with tab_esoccer:
     st.markdown("### 🎮 e-Soccer — Recomendador Automático de Apostas")
-    st.caption("Selecione os pilotos e as médias. O terminal faz os cálculos e entrega mastigadas as melhores opções de aposta em Gols e Vitória.")
+    st.caption("Selecione os pilotos e ajuste as médias caso queira refinar. O terminal recalcula instantaneamente as melhores opções em Gols e Vitória.")
     
     categoria_jogo = st.selectbox(
         "Selecione a Liga / Formato (Betano):",
@@ -458,9 +458,9 @@ with tab_esoccer:
     )
     
     PILOTOS_BETTORS_ORD = [
-        "chevare (Juventus)", "Animal (Sporting CP)", "Maki (Arsenal)", "Linox (B Dortmund)",
+        "SPECIAL (Roma)", "Animal (Sporting CP)", "chevare (Juventus)", "Maki (Arsenal)", "Linox (B Dortmund)",
         "Llulle (Roma)", "Sena (Fenerbahce)", "Cira (Salzburg)", "pikalicaaa (Porto)",
-        "BlackStar98 (Villarreal)", "Revenge (Barcelona)", "Lx7ss (Sassuolo)", "SPECIAL (Roma)",
+        "BlackStar98 (Villarreal)", "Revenge (Barcelona)", "Lx7ss (Sassuolo)",
         "Jokadinho (Juventus)", "maggett0 (Bologna)", "Dov1n (Napoli)", "Buu (France)",
         "Lufy (Spain)", "Pex (Germany)", "Firminho (England)", "ZORO (Argentina)",
         "Eros (AZ Alkmaar)", "Fox (RSC Anderlecht)", "Kratos (Crystal Palace)", "Crysis (Celtic Glasgow)",
@@ -471,99 +471,102 @@ with tab_esoccer:
     col_s1, col_s2 = st.columns(2)
     with col_s1:
         st.markdown("#### 🏠 Piloto 1 (Casa)")
-        p1 = st.selectbox("Pesquisar Piloto 1:", PILOTOS_BETTORS_ORD, index=0, key="sel_p1_v4")
-        gfc = st.number_input("Média Gols Feitos (P1):", value=2.9, step=0.1, key="mg_f1_v4")
-        gsc = st.number_input("Média Gols Sofridos (P1):", value=1.6, step=0.1, key="mg_s1_v4")
-        odd_p1 = st.number_input("Odd Betano (Vitória P1):", value=2.10, step=0.01, key="od_p1_v4")
+        p1 = st.selectbox("Pesquisar Piloto 1:", PILOTOS_BETTORS_ORD, index=0, key="sel_p1_v5")
+        gfc = st.number_input("Média Gols Feitos (P1):", value=3.1, step=0.1, key=f"mg_f1_{p1}")
+        gsc = st.number_input("Média Gols Sofridos (P1):", value=1.4, step=0.1, key=f"mg_s1_{p1}")
+        odd_p1 = st.number_input("Odd Betano (Vitória P1):", value=1.95, step=0.01, key=f"od_p1_{p1}")
         
     with col_s2:
         st.markdown("#### ✈️ Piloto 2 (Fora)")
-        p2 = st.selectbox("Pesquisar Piloto 2:", PILOTOS_BETTORS_ORD, index=1, key="sel_p2_v4")
-        gff = st.number_input("Média Gols Feitos (P2):", value=3.2, step=0.1, key="mg_f2_v4")
-        gsf = st.number_input("Média Gols Sofridos (P2):", value=1.8, step=0.1, key="mg_s2_v4")
-        odd_p2 = st.number_input("Odd Betano (Vitória P2):", value=2.45, step=0.01, key="od_p2_v4")
+        p2 = st.selectbox("Pesquisar Piloto 2:", PILOTOS_BETTORS_ORD, index=1, key="sel_p2_v5")
+        gff = st.number_input("Média Gols Feitos (P2):", value=2.7, step=0.1, key=f"mg_f2_{p2}")
+        gsf = st.number_input("Média Gols Sofridos (P2):", value=1.8, step=0.1, key=f"mg_s2_{p2}")
+        odd_p2 = st.number_input("Odd Betano (Vitória P2):", value=3.10, step=0.01, key=f"od_p2_{p2}")
 
-    tipo_tempo = "4 min" if "2x4 min" in categoria_jogo else "6 min"
-    fator = 1.25 if tipo_tempo == "4 min" else 1.10
-    
-    gols_esperados_p1 = (gfc + gsf) / 2
-    gols_esperados_p2 = (gff + gsc) / 2
-    gols_total_proj = round((gols_esperados_p1 + gols_esperados_p2) * fator, 2)
-    
-    if gols_total_proj >= 9.5:
-        melhor_linha_gols = "Mais de 8.5 Gols"
-        odd_sugerida_gols = 1.62
-    elif gols_total_proj >= 8.0:
-        melhor_linha_gols = "Mais de 7.5 Gols"
-        odd_sugerida_gols = 1.55
+    if p1 == p2:
+        st.warning("⚠️ Selecionou o mesmo piloto para ambos os lados. Por favor, escolha pilotos diferentes para efetuar a projeção correta.")
     else:
-        melhor_linha_gols = "Mais de 6.5 Gols"
-        odd_sugerida_gols = 1.45
+        tipo_tempo = "4 min" if "2x4 min" in categoria_jogo else "6 min"
+        fator = 1.25 if tipo_tempo == "4 min" else 1.10
+        
+        gols_esperados_p1 = (gfc + gsf) / 2
+        gols_esperados_p2 = (gff + gsc) / 2
+        gols_total_proj = round((gols_esperados_p1 + gols_esperados_p2) * fator, 2)
+        
+        if gols_total_proj >= 9.5:
+            melhor_linha_gols = "Mais de 8.5 Gols"
+            odd_sugerida_gols = 1.62
+        elif gols_total_proj >= 8.0:
+            melhor_linha_gols = "Mais de 7.5 Gols"
+            odd_sugerida_gols = 1.55
+        else:
+            melhor_linha_gols = "Mais de 6.5 Gols"
+            odd_sugerida_gols = 1.45
 
-    if odd_p1 < odd_p2 and gols_esperados_p1 > gols_esperados_p2:
-        melhor_vitoria = f"Vitória Simples ou Dupla Hipótese: {p1}"
-        odd_vitoria_ref = odd_p1
-    elif odd_p2 < odd_p1 and gols_esperados_p2 > gols_esperados_p1:
-        melhor_vitoria = f"Vitória Simples ou Dupla Hipótese: {p2}"
-        odd_vitoria_ref = odd_p2
-    else:
-        melhor_vitoria = "Confronto Equilibrado / Ambas Marcam (BTTS)"
-        odd_vitoria_ref = 1.75
+        if odd_p1 < odd_p2 and gols_esperados_p1 > gols_esperados_p2:
+            melhor_vitoria = f"Vitória Simples ou Dupla Hipótese: {p1}"
+            odd_vitoria_ref = odd_p1
+        elif odd_p2 < odd_p1 and gols_esperados_p2 > gols_esperados_p1:
+            melhor_vitoria = f"Vitória Simples ou Dupla Hipótese: {p2}"
+            odd_vitoria_ref = odd_p2
+        else:
+            melhor_vitoria = "Confronto Equilibrado / Ambas Marcam (BTTS)"
+            odd_vitoria_ref = 1.75
 
-    st.markdown("---")
-    st.markdown("### 🎯 Melhores Opções de Aposta Recomendadas pelo Terminal")
-    
-    c_rec1, c_rec2 = st.columns(2)
-    
-    id_rec1 = f"esoccer_gols_{p1}_{p2}"
-    item_rec1 = {
-        "id": id_rec1, "confronto": f"{p1} vs {p2}", "mercado": f"{melhor_linha_gols} ({categoria_jogo})",
-        "odd": odd_sugerida_gols, "raio_x": [f"Projeção: {gols_total_proj} gols"]
-    }
-    
-    with c_rec1:
-        st.markdown(f"""
-        <div class="match-card" style="border-color: #38bdf8;">
-            <h4 style="color: #38bdf8; margin-top: 0;">⚽ Mercado de Gols</h4>
-            <p><strong>Sugestão:</strong> {melhor_linha_gols}</p>
-            <p><strong>Projeção do Jogo:</strong> {gols_total_proj} gols esperados</p>
-            <p><strong>Odd Média Betano:</strong> ~{odd_sugerida_gols:.2f}</p>
-        </div>
-        """, unsafe_allow_html=True)
-        ja_r1 = id_rec1 in st.session_state.selecionados
-        if st.checkbox("📥 Adicionar Sugestão de Gols ao Bilhete", value=ja_r1, key="chk_rec_gols"):
-            if not ja_r1:
-                st.session_state.selecionados[id_rec1] = item_rec1
-                st.success("Adicionado ao bilhete!")
+        st.markdown("---")
+        st.markdown("### 🎯 Melhores Opções de Aposta Recomendadas pelo Terminal")
+        
+        c_rec1, c_rec2 = st.columns(2)
+        
+        id_rec1 = f"esoccer_gols_{p1}_{p2}"
+        item_rec1 = {
+            "id": id_rec1, "confronto": f"{p1} vs {p2}", "mercado": f"{melhor_linha_gols} ({categoria_jogo})",
+            "odd": odd_sugerida_gols, "raio_x": [f"Projeção: {gols_total_proj} gols"]
+        }
+        
+        with c_rec1:
+            st.markdown(f"""
+            <div class="match-card" style="border-color: #38bdf8;">
+                <h4 style="color: #38bdf8; margin-top: 0;">⚽ Mercado de Gols</h4>
+                <p><strong>Sugestão:</strong> {melhor_linha_gols}</p>
+                <p><strong>Projeção do Jogo:</strong> {gols_total_proj} gols esperados</p>
+                <p><strong>Odd Média Betano:</strong> ~{odd_sugerida_gols:.2f}</p>
+            </div>
+            """, unsafe_allow_html=True)
+            ja_r1 = id_rec1 in st.session_state.selecionados
+            if st.checkbox("📥 Adicionar Sugestão de Gols ao Bilhete", value=ja_r1, key="chk_rec_gols_v5"):
+                if not ja_r1:
+                    st.session_state.selecionados[id_rec1] = item_rec1
+                    st.success("Adicionado ao bilhete!")
+                    st.rerun()
+            elif ja_r1:
+                del st.session_state.selecionados[id_rec1]
                 st.rerun()
-        elif ja_r1:
-            del st.session_state.selecionados[id_rec1]
-            st.rerun()
 
-    id_rec2 = f"esoccer_vit_{p1}_{p2}"
-    item_rec2 = {
-        "id": id_rec2, "confronto": f"{p1} vs {p2}", "mercado": f"{melhor_vitoria} ({categoria_jogo})",
-        "odd": odd_vitoria_ref, "raio_x": [f"Análise de desempenho cruzada"]
-    }
-    
-    with c_rec2:
-        st.markdown(f"""
-        <div class="match-card" style="border-color: #10b981;">
-            <h4 style="color: #10b981; margin-top: 0;">🏆 Mercado de Resultado</h4>
-            <p><strong>Sugestão:</strong> {melhor_vitoria}</p>
-            <p><strong>Análise:</strong> Baseada na conversão ofensiva e solidez defensiva.</p>
-            <p><strong>Odd de Referência:</strong> ~{odd_vitoria_ref:.2f}</p>
-        </div>
-        """, unsafe_allow_html=True)
-        ja_r2 = id_rec2 in st.session_state.selecionados
-        if st.checkbox("📥 Adicionar Sugestão de Resultado ao Bilhete", value=ja_r2, key="chk_rec_vit"):
-            if not ja_r2:
-                st.session_state.selecionados[id_rec2] = item_rec2
-                st.success("Adicionado ao bilhete!")
+        id_rec2 = f"esoccer_vit_{p1}_{p2}"
+        item_rec2 = {
+            "id": id_rec2, "confronto": f"{p1} vs {p2}", "mercado": f"{melhor_vitoria} ({categoria_jogo})",
+            "odd": odd_vitoria_ref, "raio_x": [f"Análise de desempenho cruzada"]
+        }
+        
+        with c_rec2:
+            st.markdown(f"""
+            <div class="match-card" style="border-color: #10b981;">
+                <h4 style="color: #10b981; margin-top: 0;">🏆 Mercado de Resultado</h4>
+                <p><strong>Sugestão:</strong> {melhor_vitoria}</p>
+                <p><strong>Análise:</strong> Baseada na conversão ofensiva e solidez defensiva.</p>
+                <p><strong>Odd de Referência:</strong> ~{odd_vitoria_ref:.2f}</p>
+            </div>
+            """, unsafe_allow_html=True)
+            ja_r2 = id_rec2 in st.session_state.selecionados
+            if st.checkbox("📥 Adicionar Sugestão de Resultado ao Bilhete", value=ja_r2, key="chk_rec_vit_v5"):
+                if not ja_r2:
+                    st.session_state.selecionados[id_rec2] = item_rec2
+                    st.success("Adicionado ao bilhete!")
+                    st.rerun()
+            elif ja_r2:
+                del st.session_state.selecionados[id_rec2]
                 st.rerun()
-        elif ja_r2:
-            del st.session_state.selecionados[id_rec2]
-            st.rerun()
 
 with tab_diario:
     st.markdown("### 📋 Diário Operacional")
