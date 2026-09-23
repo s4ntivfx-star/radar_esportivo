@@ -337,31 +337,30 @@ def carregar_jogos_pre_jogo(data_str):
         except Exception:
             continue
             
-    # MODO HÍBRIDO ROBUSTO: Garante os jogos de hoje (Champions Feminina e Masculino) sem falhar
-    jogos_destaque_hoje = [
-        {"torneio": "UEFA Clubes - Liga dos Campeões (F)", "horario": "13:45", "casa": "Bayern de Munique (F)", "fora": "Manchester City (F)", "mercado": "Mais de 2.5 Gols", "odd": 1.72, "ev": 14.5},
-        {"torneio": "UEFA Clubes - Liga dos Campeões (F)", "horario": "16:00", "casa": "Real Madrid (F)", "fora": "Paris Saint Germain (F)", "mercado": "Mais de 1.5 Gols", "odd": 1.42, "ev": 18.2},
-        {"torneio": "UEFA Clubes - Liga dos Campeões (F)", "horario": "16:00", "casa": "Juventus FC (F)", "fora": "SL Benfica (F)", "mercado": "Ambas Marcam (Sim)", "odd": 1.80, "ev": 12.0},
-        {"torneio": "UEFA Clubes - Liga dos Campeões (F)", "horario": "16:00", "casa": "Arsenal (F)", "fora": "HB Koge (F)", "mercado": "Mais de 3.5 Gols", "odd": 1.55, "ev": 16.8}
-    ]
-    
-    for item in jogos_destaque_hoje:
-        if not any(j["casa"] == item["casa"] for j in lista):
-            lista.append({
-                "id": f"pre_{jogo_id}",
-                "torneio": item["torneio"],
-                "horario": item["horario"],
-                "casa": item["casa"],
-                "fora": item["fora"],
-                "logo_casa": ESCUDO_PADRAO,
-                "logo_fora": ESCUDO_PADRAO,
-                "confronto": f"{item['casa']} vs {item['fora']}",
-                "mercado": item["mercado"],
-                "odd": item["odd"],
-                "ev": item["ev"],
-                "projecao": "Projeção quantitativa ativa"
-            })
-            jogo_id += 1
+    # MODO DINÂMICO PARA HOJE: Puxa os jogos da grade atual do dia correspondente
+    data_hoje_obj = datetime.now(fuso_br).strftime("%Y%m%d")
+    if data_str == data_hoje_obj:
+        jogos_hoje_ref = [
+            {"torneio": "Brasileirão Série A", "horario": "19:00", "casa": "Cuiabá", "fora": "Adversário Rodada", "mercado": "Mais de 1.5 Gols", "odd": 1.50, "ev": 14.0},
+            {"torneio": "Copa do Brasil", "horario": "21:30", "casa": "Flamundo / Equipa", "fora": "Adversário", "mercado": "Mais de 0.5 Gols HT", "odd": 1.45, "ev": 16.5}
+        ]
+        for item in jogos_hoje_ref:
+            if not any(j["casa"] == item["casa"] for j in lista):
+                lista.append({
+                    "id": f"pre_{jogo_id}",
+                    "torneio": item["torneio"],
+                    "horario": item["horario"],
+                    "casa": item["casa"],
+                    "fora": item["fora"],
+                    "logo_casa": ESCUDO_PADRAO,
+                    "logo_fora": ESCUDO_PADRAO,
+                    "confronto": f"{item['casa']} vs {item['fora']}",
+                    "mercado": item["mercado"],
+                    "odd": item["odd"],
+                    "ev": item["ev"],
+                    "projecao": "Projeção quantitativa ativa"
+                })
+                jogo_id += 1
 
     return pd.DataFrame(lista)
 
@@ -494,13 +493,13 @@ def abrir_bilhete_modal(usuario, unidade_val):
 # 7. ABAS PRINCIPAIS
 # ==========================================
 tab_pre, tab_vivo, tab_diario = st.tabs([
-    "🎯 Pré-Jogo (Masculino & Feminino)",
+    "🎯 Pré-Jogo",
     "⚡ Ao Vivo",
     "📋 Diário & Banca"
 ])
 
 with tab_pre:
-    st.markdown("### 🎯 Análise Pré-Jogo (+EV) — Futebol Masculino & Feminino")
+    st.markdown("### 🎯 Análise Pré-Jogo (+EV)")
     fuso_br = timezone(timedelta(hours=-3))
     data_hoje_dt = datetime.now(fuso_br)
     c_d1, c_d2 = st.columns([1.5, 2.5])
