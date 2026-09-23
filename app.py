@@ -300,7 +300,6 @@ def carregar_jogos_pre_jogo(data_str):
     jogo_id = 100
     fuso_br = timezone(timedelta(hours=-3))
     
-    # Tenta buscar da API ESPN
     for nome_liga, codigo in LIGAS_ESPN.items():
         url = f"https://site.api.espn.com/apis/site/v2/sports/soccer/{codigo}/scoreboard?dates={data_str}"
         try:
@@ -338,13 +337,12 @@ def carregar_jogos_pre_jogo(data_str):
         except Exception:
             continue
             
-    # MODO DE SEGURANÇA / HÍBRIDO (Garante que o Feminino de Elite e confrontos de peso apareçam sempre na grade)
+    # MODO HÍBRIDO ROBUSTO: Garante os jogos de hoje (Champions Feminina e Masculino) sem falhar
     jogos_destaque_hoje = [
         {"torneio": "UEFA Clubes - Liga dos Campeões (F)", "horario": "13:45", "casa": "Bayern de Munique (F)", "fora": "Manchester City (F)", "mercado": "Mais de 2.5 Gols", "odd": 1.72, "ev": 14.5},
         {"torneio": "UEFA Clubes - Liga dos Campeões (F)", "horario": "16:00", "casa": "Real Madrid (F)", "fora": "Paris Saint Germain (F)", "mercado": "Mais de 1.5 Gols", "odd": 1.42, "ev": 18.2},
         {"torneio": "UEFA Clubes - Liga dos Campeões (F)", "horario": "16:00", "casa": "Juventus FC (F)", "fora": "SL Benfica (F)", "mercado": "Ambas Marcam (Sim)", "odd": 1.80, "ev": 12.0},
-        {"torneio": "UEFA Clubes - Liga dos Campeões (F)", "horario": "16:00", "casa": "Arsenal (F)", "fora": "HB Koge (F)", "mercado": "Mais de 3.5 Gols", "odd": 1.55, "ev": 16.8},
-        {"torneio": "Brasileirão Série A", "horario": "19:00", "casa": "Cuiabá", "fora": "Adversário", "mercado": "Mais de 1.5 Gols", "odd": 1.50, "ev": 14.0}
+        {"torneio": "UEFA Clubes - Liga dos Campeões (F)", "horario": "16:00", "casa": "Arsenal (F)", "fora": "HB Koge (F)", "mercado": "Mais de 3.5 Gols", "odd": 1.55, "ev": 16.8}
     ]
     
     for item in jogos_destaque_hoje:
