@@ -259,13 +259,9 @@ if not st.session_state.usuario_ativo:
 usuario_ativo = st.session_state.usuario_ativo
 
 # ==========================================
-# 4. MOTOR DA API-FOOTBALL (WHITELIST RIGOROSA DE LIGAS DE ELITE)
+# 4. MOTOR DA API-FOOTBALL (CAPTAÇÃO AMPLA DE ELITE E SELEÇÕES)
 # ==========================================
 ESCUDO_PADRAO = "https://cdn-icons-png.flaticon.com/512/861/861512.png"
-
-# IDs oficiais na API-Football para as principais competições de seleções e elite global (Nations League, Eliminatórias, Amistosos FIFA, etc.)
-LIGAS_ELITE_IDS = [5, 10, 11, 12, 13, 2, 3, 848, 1, 9, 32, 34] 
-# (Ex: UEFA Nations League, World Cup Qual., Amistosos Internacionais, Champions League, etc.)
 
 @st.cache_data(ttl=3600, show_spinner=False)
 def buscar_fixtures_api_football(data_str):
@@ -279,19 +275,36 @@ def buscar_fixtures_api_football(data_str):
             data = resp.json()
             fixtures = data.get("response", [])
             
-            # Filtro estrito por ID de liga de elite ou nome exato principal
-            filtrados = []
+            # Filtro inteligente que prioriza Nations League, Eliminatórias, Amistosos Principais e Ligas Nacionais de topo
+            prioridades = []
+            outros = []
+            
             for fx in fixtures:
-                liga_id = fx.get("league", {}).get("id")
                 liga_nome = fx.get("league", {}).get("name", "").lower()
+                status_short = fx.get("fixture", {}).get("status", {}).get("short", "")
                 
-                # Aceita se estiver na lista de IDs principais ou se for explicitamente Nations League / Amistoso de Seleções / Eliminatórias principais
-                if liga_id in LIGAS_ELITE_IDS or any(termo in liga_nome for termo in ["nations league", "friendly", "amistoso", "world cup qualification", "champions league"]):
-                    # Rejeita qualquer sub-20, sub-19, feminino amador ou divisões inferiores estaduais
-                    if not any(sub in liga_nome for sub in ["u20", "u19", "u21", "u23", "women", "feminino", "youth"]):
-                        filtrados.append(fx)
-                        
-            return filtrados if filtrados else fixtures[:10]
+                # Ignora jogos que já terminaram no dia (FT, AET, PEN)
+                if status_short in ["FT", "AET", "PEN", "AWD", "WO"]:
+                    continue
+                
+                # Bloqueia sub-20/sub-21 para não trazer peladas
+                if any(sub in liga_nome for sub in ["u20", "u19", "u21", "u23", "youth"]):
+                    continue
+                
+                # Identifica se é jogo de peso (Nations League, Eliminatórias, Amistosos FIFA, Copas)
+                is_principal = any(k in liga_nome for k in [
+                    "nations league", "friendly", "amistoso", "qualification", 
+                    "eliminatórias", "champions", "copa", "libertadores", "liga", "serie a", "premier"
+                ])
+                
+                if is_principal:
+                    prioridades.append(fx)
+                else:
+                    outros.append(fx)
+                    
+            # Retorna primeiro os jogos de peso, completando com os demais se necessário
+            combinado = prioridades + outros
+            return combinado if combinado else fixtures[:15]
     except Exception:
         pass
     return []
@@ -418,7 +431,7 @@ data_hoje_dt = datetime.now(fuso_br)
 
 with tab_pre:
     col_t1, col_t2 = st.columns([3, 1])
-    col_t1.markdown("### 🎯 Análise Pré-Jogo (+EV) — Elite do Futebol")
+    col_t1.markdown("### 🎯 Análise Pré-Jogo (+EV) — Nations League & Seleções")
     
     c_d1, c_d2 = col_t2.columns([2, 1])
     aba_data = c_d1.radio("Período:", ["Hoje", "Amanhã"], horizontal=True, label_visibility="collapsed")
@@ -433,9 +446,9 @@ with tab_pre:
     fixtures = buscar_fixtures_api_football(data_str)
     
     if not fixtures:
-        st.warning(f"Nenhuma partida de elite encontrada para {data_str}.")
+        st.warning(f"Nenhuma partida encontrada para {data_str}.")
     else:
-        for idx, fx in enumerate(fixtures[:8]): # Restrito aos melhores jogos do dia
+        for idx, fx in enumerate(fixtures[:20]):
             liga_nome = fx.get("league", {}).get("name", "Futebol Mundial")
             home = fx.get("teams", {}).get("home", {})
             away = fx.get("teams", {}).get("away", {})
