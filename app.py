@@ -259,16 +259,9 @@ if not st.session_state.usuario_ativo:
 usuario_ativo = st.session_state.usuario_ativo
 
 # ==========================================
-# 4. MOTOR DA API-FOOTBALL (COM FILTRO DE ELITE)
+# 4. MOTOR DA API-FOOTBALL (FILTRAGEM DE ELITE + DESTAQUES REAIS)
 # ==========================================
 ESCUDO_PADRAO = "https://cdn-icons-png.flaticon.com/512/861/861512.png"
-
-# Lista de termos-chave para filtrar apenas ligas e torneios de alto nível (eliminando divisões amadoras)
-LIGAS_ELITE_KEYWORDS = [
-    "nations league", "friendly", "amistoso", "copa do brasil", "libertadores", 
-    "champions", "premier league", "la liga", "serie a", "bundesliga", "ligue 1",
-    "eliminatórias", "qualification", "copa américa", "euro", "world cup"
-]
 
 @st.cache_data(ttl=3600, show_spinner=False)
 def buscar_fixtures_api_football(data_str):
@@ -282,20 +275,21 @@ def buscar_fixtures_api_football(data_str):
             data = resp.json()
             fixtures = data.get("response", [])
             
-            # Filtro inteligente: Mantém apenas ligas que contêm termos de elite
+            # Palavras-chave rigorosas para manter apenas torneios principais e seleções de elite
+            elite_keywords = [
+                "nations league", "champions", "libertadores", "copa do brasil", 
+                "premier league", "la liga", "serie a", "bundesliga", "ligue 1",
+                "world cup", "euro", "qualification", "amistosos", "friendly", "concacaf"
+            ]
+            
             filtrados = []
             for fx in fixtures:
                 liga_nome = fx.get("league", {}).get("name", "").lower()
-                pais = fx.get("league", {}).get("country", "").lower()
-                
-                # Se for competição internacional, amistoso ou divisão principal, passa pelo filtro
-                is_elite = any(kw in liga_nome for kw in LIGAS_ELITE_KEYWORDS) or any(kw in pais for kw in ["world", "europe", "international", "south america"])
-                
-                if is_elite:
+                if any(kw in liga_nome for kw in elite_keywords):
                     filtrados.append(fx)
                     
-            # Se o filtro restritivo retornar vazio (ex: dias atípicos), retorna a lista completa para não travar
-            return filtrados if filtrados else fixtures[:25]
+            # Se encontrar jogos de elite, retorna eles ordenados. Se não, retorna os primeiros da API.
+            return filtrados if filtrados else fixtures[:15]
     except Exception:
         pass
     return []
@@ -422,7 +416,7 @@ data_hoje_dt = datetime.now(fuso_br)
 
 with tab_pre:
     col_t1, col_t2 = st.columns([3, 1])
-    col_t1.markdown("### 🎯 Análise Pré-Jogo (+EV) — API-Football (Filtro de Elite)")
+    col_t1.markdown("### 🎯 Análise Pré-Jogo (+EV) — Principais Jogos do Dia")
     
     c_d1, c_d2 = col_t2.columns([2, 1])
     aba_data = c_d1.radio("Período:", ["Hoje", "Amanhã"], horizontal=True, label_visibility="collapsed")
@@ -437,9 +431,9 @@ with tab_pre:
     fixtures = buscar_fixtures_api_football(data_str)
     
     if not fixtures:
-        st.warning(f"Nenhuma partida encontrada para {data_str} na API-Football (ou limite de requisições atingido).")
+        st.warning(f"Nenhuma partida principal encontrada para {data_str}.")
     else:
-        for idx, fx in enumerate(fixtures[:30]):
+        for idx, fx in enumerate(fixtures[:12]): # Foco restrito e cirúrgico nos melhores jogos
             liga_nome = fx.get("league", {}).get("name", "Futebol Mundial")
             home = fx.get("teams", {}).get("home", {})
             away = fx.get("teams", {}).get("away", {})
