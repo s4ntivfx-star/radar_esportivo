@@ -257,7 +257,7 @@ if not st.session_state.usuario_ativo:
 usuario_ativo = st.session_state.usuario_ativo
 
 # ==========================================
-# 4. GRADE DE JOGOS OFICIAL (BASEADA NOS PRINTS DA BETANO)
+# 4. GRADE DE JOGOS (FOCO EM AMISTOSOS DE SELEÇÕES - 24/09)
 # ==========================================
 ESCUDO_PADRAO = "https://cdn-icons-png.flaticon.com/512/861/861512.png"
 
@@ -265,21 +265,18 @@ def carregar_grade_betano(dia_selecionado):
     lista = []
     jogo_id = 100
     
-    # Jogos de Hoje (23/09) exatos dos prints da Betano
+    # Amistosos de Seleções e Destaques de Hoje (24/09/2026)
     jogos_hoje = [
-        {"torneio": "UEFA Clubes - Liga dos Campeões (F)", "horario": "13:45", "casa": "Servette FC Chenois (F)", "fora": "Lyon (F)", "mercado": "Mais de 2.5 Gols", "odd": 1.75, "ev": 15.2},
-        {"torneio": "UEFA Clubes - Liga dos Campeões (F)", "horario": "13:45", "casa": "Oud-Heverlee Leuven (F)", "fora": "Roma (F)", "mercado": "Ambas Marcam (Sim)", "odd": 1.70, "ev": 14.0},
-        {"torneio": "UEFA Clubes - Liga dos Campeões (F)", "horario": "16:00", "casa": "Barcelona (F)", "fora": "Paris FC (F)", "mercado": "Mais de 3.5 Gols", "odd": 1.62, "ev": 18.5},
-        {"torneio": "UEFA Clubes - Liga dos Campeões (F)", "horario": "16:00", "casa": "Chelsea LFC (F)", "fora": "Áustria Viena (F)", "mercado": "Mais de 2.5 Gols", "odd": 1.45, "ev": 16.2},
-        {"torneio": "Internacional - Jogos Amistosos", "horario": "13:00", "casa": "Azerbaijão", "fora": "Tajiquistão", "mercado": "Mais de 1.5 Gols", "odd": 1.38, "ev": 12.8},
-        {"torneio": "EUA - MLS", "horario": "22:30", "casa": "Seattle Sounders FC", "fora": "Real Salt Lake", "mercado": "Mais de 1.5 Gols", "odd": 1.35, "ev": 13.1},
-        {"torneio": "Colômbia - Categoría Primera A", "horario": "21:30", "casa": "America de Cali", "fora": "Aguilas Doradas", "mercado": "Menos de 2.5 Gols", "odd": 1.65, "ev": 11.5}
+        {"torneio": "Internacional - Jogos Amistosos", "horario": "07:05", "casa": "Japão", "fora": "Uruguai", "mercado": "Ambas Marcam (Sim)", "odd": 1.85, "ev": 16.5},
+        {"torneio": "Internacional - Jogos Amistosos", "horario": "08:00", "casa": "Coréia do Sul", "fora": "Equador", "mercado": "Mais de 2.5 Gols", "odd": 1.90, "ev": 17.8},
+        {"torneio": "Internacional - Jogos Amistosos", "horario": "15:00", "casa": "Arábia Saudita", "fora": "Kuwait", "mercado": "Mais de 1.5 Gols", "odd": 1.40, "ev": 13.2},
+        {"torneio": "Internacional - Jogos Amistosos", "horario": "18:30", "casa": "Brasil", "fora": "Colômbia (Amistoso Data FIFA)", "mercado": "Ambas Marcam (Sim)", "odd": 1.78, "ev": 15.1},
+        {"torneio": "Internacional - Jogos Amistosos", "horario": "21:00", "casa": "Argentina", "fora": "Chile", "mercado": "Mais de 2.5 Gols", "odd": 1.82, "ev": 16.4}
     ]
     
-    # Jogos de Amanhã (24/09) com os Amistosos corretos dos prints
+    # Jogos de Amanhã (25/09)
     jogos_amanha = [
-        {"torneio": "Internacional - Jogos Amistosos", "horario": "07:05", "casa": "Japão", "fora": "Uruguai", "mercado": "Ambas Marcam (Sim)", "odd": 1.85, "ev": 16.5},
-        {"torneio": "Internacional - Jogos Amistosos", "horario": "08:00", "casa": "Coréia do Sul", "fora": "Equador", "mercado": "Mais de 2.5 Gols", "odd": 1.90, "ev": 17.8}
+        {"torneio": "Brasileirão Série A", "horario": "20:00", "casa": "Fluminense", "fora": "Vasco da Gama", "mercado": "Mais de 1.5 Gols", "odd": 1.45, "ev": 14.0}
     ]
     
     selecao = jogos_hoje if dia_selecionado == "Hoje" else jogos_amanha
@@ -297,7 +294,7 @@ def carregar_grade_betano(dia_selecionado):
             "mercado": item["mercado"],
             "odd": item["odd"],
             "ev": item["ev"],
-            "projecao": "Projeção quantitativa de valor +EV"
+            "projecao": "Projeção quantitativa focada em testes e renovação (Data FIFA)"
         })
         jogo_id += 1
 
@@ -388,13 +385,13 @@ def abrir_bilhete_modal(usuario, unidade_val):
 # 7. ABAS PRINCIPAIS
 # ==========================================
 tab_pre, tab_vivo, tab_diario = st.tabs([
-    "🎯 Pré-Jogo (Betano Oficial)",
+    "🎯 Pré-Jogo (Amistosos & Seleções)",
     "⚡ Ao Vivo",
     "📋 Diário & Banca"
 ])
 
 with tab_pre:
-    st.markdown("### 🎯 Análise Pré-Jogo (+EV) — Grade Betano")
+    st.markdown("### 🎯 Análise Pré-Jogo (+EV) — Amistosos Internacionais (24/09)")
     
     c_d1, c_d2 = st.columns([1.5, 2.5])
     with c_d1:
