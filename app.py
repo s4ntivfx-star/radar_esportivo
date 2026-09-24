@@ -259,9 +259,16 @@ if not st.session_state.usuario_ativo:
 usuario_ativo = st.session_state.usuario_ativo
 
 # ==========================================
-# 4. MOTOR DA API-FOOTBALL (FUTEBOL OFICIAL)
+# 4. MOTOR DA API-FOOTBALL (COM FILTRO DE ELITE)
 # ==========================================
 ESCUDO_PADRAO = "https://cdn-icons-png.flaticon.com/512/861/861512.png"
+
+# Lista de termos-chave para filtrar apenas ligas e torneios de alto nível (eliminando divisões amadoras)
+LIGAS_ELITE_KEYWORDS = [
+    "nations league", "friendly", "amistoso", "copa do brasil", "libertadores", 
+    "champions", "premier league", "la liga", "serie a", "bundesliga", "ligue 1",
+    "eliminatórias", "qualification", "copa américa", "euro", "world cup"
+]
 
 @st.cache_data(ttl=3600, show_spinner=False)
 def buscar_fixtures_api_football(data_str):
@@ -273,7 +280,22 @@ def buscar_fixtures_api_football(data_str):
         resp = requests.get(url, headers=headers, timeout=6)
         if resp.status_code == 200:
             data = resp.json()
-            return data.get("response", [])
+            fixtures = data.get("response", [])
+            
+            # Filtro inteligente: Mantém apenas ligas que contêm termos de elite
+            filtrados = []
+            for fx in fixtures:
+                liga_nome = fx.get("league", {}).get("name", "").lower()
+                pais = fx.get("league", {}).get("country", "").lower()
+                
+                # Se for competição internacional, amistoso ou divisão principal, passa pelo filtro
+                is_elite = any(kw in liga_nome for kw in LIGAS_ELITE_KEYWORDS) or any(kw in pais for kw in ["world", "europe", "international", "south america"])
+                
+                if is_elite:
+                    filtrados.append(fx)
+                    
+            # Se o filtro restritivo retornar vazio (ex: dias atípicos), retorna a lista completa para não travar
+            return filtrados if filtrados else fixtures[:25]
     except Exception:
         pass
     return []
@@ -387,7 +409,7 @@ def abrir_bilhete_modal(usuario, unidade_val):
         st.rerun()
 
 # ==========================================
-# 7. ABAS PRINCIPAIS (FUTEBOL PRÉ-JOGO, AO VIVO E DIÁRIO)
+# 7. ABAS PRINCIPAIS
 # ==========================================
 tab_pre, tab_vivo, tab_diario = st.tabs([
     "🎯 Pré-Jogo (Futebol Oficial)",
@@ -400,7 +422,7 @@ data_hoje_dt = datetime.now(fuso_br)
 
 with tab_pre:
     col_t1, col_t2 = st.columns([3, 1])
-    col_t1.markdown("### 🎯 Análise Pré-Jogo (+EV) — API-Football")
+    col_t1.markdown("### 🎯 Análise Pré-Jogo (+EV) — API-Football (Filtro de Elite)")
     
     c_d1, c_d2 = col_t2.columns([2, 1])
     aba_data = c_d1.radio("Período:", ["Hoje", "Amanhã"], horizontal=True, label_visibility="collapsed")
