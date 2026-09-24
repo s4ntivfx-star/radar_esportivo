@@ -259,9 +259,13 @@ if not st.session_state.usuario_ativo:
 usuario_ativo = st.session_state.usuario_ativo
 
 # ==========================================
-# 4. MOTOR DA API-FOOTBALL (FILTRAGEM DE ELITE + DESTAQUES REAIS)
+# 4. MOTOR DA API-FOOTBALL (WHITELIST RIGOROSA DE LIGAS DE ELITE)
 # ==========================================
 ESCUDO_PADRAO = "https://cdn-icons-png.flaticon.com/512/861/861512.png"
+
+# IDs oficiais na API-Football para as principais competições de seleções e elite global (Nations League, Eliminatórias, Amistosos FIFA, etc.)
+LIGAS_ELITE_IDS = [5, 10, 11, 12, 13, 2, 3, 848, 1, 9, 32, 34] 
+# (Ex: UEFA Nations League, World Cup Qual., Amistosos Internacionais, Champions League, etc.)
 
 @st.cache_data(ttl=3600, show_spinner=False)
 def buscar_fixtures_api_football(data_str):
@@ -275,21 +279,19 @@ def buscar_fixtures_api_football(data_str):
             data = resp.json()
             fixtures = data.get("response", [])
             
-            # Palavras-chave rigorosas para manter apenas torneios principais e seleções de elite
-            elite_keywords = [
-                "nations league", "champions", "libertadores", "copa do brasil", 
-                "premier league", "la liga", "serie a", "bundesliga", "ligue 1",
-                "world cup", "euro", "qualification", "amistosos", "friendly", "concacaf"
-            ]
-            
+            # Filtro estrito por ID de liga de elite ou nome exato principal
             filtrados = []
             for fx in fixtures:
+                liga_id = fx.get("league", {}).get("id")
                 liga_nome = fx.get("league", {}).get("name", "").lower()
-                if any(kw in liga_nome for kw in elite_keywords):
-                    filtrados.append(fx)
-                    
-            # Se encontrar jogos de elite, retorna eles ordenados. Se não, retorna os primeiros da API.
-            return filtrados if filtrados else fixtures[:15]
+                
+                # Aceita se estiver na lista de IDs principais ou se for explicitamente Nations League / Amistoso de Seleções / Eliminatórias principais
+                if liga_id in LIGAS_ELITE_IDS or any(termo in liga_nome for termo in ["nations league", "friendly", "amistoso", "world cup qualification", "champions league"]):
+                    # Rejeita qualquer sub-20, sub-19, feminino amador ou divisões inferiores estaduais
+                    if not any(sub in liga_nome for sub in ["u20", "u19", "u21", "u23", "women", "feminino", "youth"]):
+                        filtrados.append(fx)
+                        
+            return filtrados if filtrados else fixtures[:10]
     except Exception:
         pass
     return []
@@ -416,7 +418,7 @@ data_hoje_dt = datetime.now(fuso_br)
 
 with tab_pre:
     col_t1, col_t2 = st.columns([3, 1])
-    col_t1.markdown("### 🎯 Análise Pré-Jogo (+EV) — Principais Jogos do Dia")
+    col_t1.markdown("### 🎯 Análise Pré-Jogo (+EV) — Elite do Futebol")
     
     c_d1, c_d2 = col_t2.columns([2, 1])
     aba_data = c_d1.radio("Período:", ["Hoje", "Amanhã"], horizontal=True, label_visibility="collapsed")
@@ -431,9 +433,9 @@ with tab_pre:
     fixtures = buscar_fixtures_api_football(data_str)
     
     if not fixtures:
-        st.warning(f"Nenhuma partida principal encontrada para {data_str}.")
+        st.warning(f"Nenhuma partida de elite encontrada para {data_str}.")
     else:
-        for idx, fx in enumerate(fixtures[:12]): # Foco restrito e cirúrgico nos melhores jogos
+        for idx, fx in enumerate(fixtures[:8]): # Restrito aos melhores jogos do dia
             liga_nome = fx.get("league", {}).get("name", "Futebol Mundial")
             home = fx.get("teams", {}).get("home", {})
             away = fx.get("teams", {}).get("away", {})
@@ -586,7 +588,7 @@ with tab_diario:
                     st.rerun()
                 if c2.button("❌ Red", key=f"r_{row['id']}"):
                     conn = get_db()
-                    conn.execute("UPDATE apostas SET status = 'Red' WHERE id = ?", (row['id'],))
+                    conn.execute("UPDATE apostas = 'Red' WHERE id = ?", (row['id'],))
                     conn.execute("UPDATE usuarios SET banca_atual = banca_atual - ? WHERE username = ?", (row['valor'], usuario_ativo))
                     conn.commit()
                     conn.close()
