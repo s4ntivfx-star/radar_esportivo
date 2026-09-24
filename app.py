@@ -259,7 +259,7 @@ if not st.session_state.usuario_ativo:
 usuario_ativo = st.session_state.usuario_ativo
 
 # ==========================================
-# 4. MOTOR DA API-FOOTBALL (CAPTAÇÃO AMPLA DE ELITE E SELEÇÕES)
+# 4. MOTOR DA API-FOOTBALL (ORDENAÇÃO DE ELITE NO TOPO)
 # ==========================================
 ESCUDO_PADRAO = "https://cdn-icons-png.flaticon.com/512/861/861512.png"
 
@@ -275,36 +275,31 @@ def buscar_fixtures_api_football(data_str):
             data = resp.json()
             fixtures = data.get("response", [])
             
-            # Filtro inteligente que prioriza Nations League, Eliminatórias, Amistosos Principais e Ligas Nacionais de topo
-            prioridades = []
+            elite = []
             outros = []
             
             for fx in fixtures:
                 liga_nome = fx.get("league", {}).get("name", "").lower()
                 status_short = fx.get("fixture", {}).get("status", {}).get("short", "")
                 
-                # Ignora jogos que já terminaram no dia (FT, AET, PEN)
                 if status_short in ["FT", "AET", "PEN", "AWD", "WO"]:
                     continue
-                
-                # Bloqueia sub-20/sub-21 para não trazer peladas
-                if any(sub in liga_nome for sub in ["u20", "u19", "u21", "u23", "youth"]):
+                if any(sub in liga_nome for sub in ["u20", "u19", "u21", "u23", "youth", "alef", "bet"]):
                     continue
                 
-                # Identifica se é jogo de peso (Nations League, Eliminatórias, Amistosos FIFA, Copas)
-                is_principal = any(k in liga_nome for k in [
+                # Joga Nations League, Eliminatórias e Copas de Seleções direto para o topo
+                is_elite = any(k in liga_nome for k in [
                     "nations league", "friendly", "amistoso", "qualification", 
-                    "eliminatórias", "champions", "copa", "libertadores", "liga", "serie a", "premier"
+                    "eliminatórias", "champions", "copa", "libertadores"
                 ])
                 
-                if is_principal:
-                    prioridades.append(fx)
+                if is_elite:
+                    elite.append(fx)
                 else:
                     outros.append(fx)
                     
-            # Retorna primeiro os jogos de peso, completando com os demais se necessário
-            combinado = prioridades + outros
-            return combinado if combinado else fixtures[:15]
+            # Prioridade absoluta para a elite
+            return elite if elite else outros[:15]
     except Exception:
         pass
     return []
@@ -448,7 +443,7 @@ with tab_pre:
     if not fixtures:
         st.warning(f"Nenhuma partida encontrada para {data_str}.")
     else:
-        for idx, fx in enumerate(fixtures[:20]):
+        for idx, fx in enumerate(fixtures[:15]):
             liga_nome = fx.get("league", {}).get("name", "Futebol Mundial")
             home = fx.get("teams", {}).get("home", {})
             away = fx.get("teams", {}).get("away", {})
@@ -601,7 +596,7 @@ with tab_diario:
                     st.rerun()
                 if c2.button("❌ Red", key=f"r_{row['id']}"):
                     conn = get_db()
-                    conn.execute("UPDATE apostas = 'Red' WHERE id = ?", (row['id'],))
+                    conn.execute("UPDATE apostas SET status = 'Red' WHERE id = ?", (row['id'],))
                     conn.execute("UPDATE usuarios SET banca_atual = banca_atual - ? WHERE username = ?", (row['valor'], usuario_ativo))
                     conn.commit()
                     conn.close()
