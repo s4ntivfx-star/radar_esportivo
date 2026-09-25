@@ -198,6 +198,10 @@ def hash_pw(senha):
 def init_db():
     conn = sqlite3.connect(DB_NAME)
     c = conn.cursor()
+    
+    # Força a recriação limpa se faltar a coluna analise
+    c.execute("DROP TABLE IF EXISTS jogos_custom")
+    
     c.execute('''
         CREATE TABLE IF NOT EXISTS usuarios (
             username TEXT PRIMARY KEY,
@@ -244,34 +248,32 @@ def init_db():
         
     c.execute("INSERT OR REPLACE INTO usuarios VALUES ('santibet', ?, ?, ?)", (hash_pw("1234"), banca_s, unit_s))
     
-    # Injeta os jogos reais de hoje (25/09/2026) com análises contextuais aprofundadas
-    total_j = c.execute("SELECT COUNT(*) FROM jogos_custom").fetchone()[0]
-    if total_j == 0:
-        fuso_br = timezone(timedelta(hours=-3))
-        hoje_str = datetime.now(fuso_br).strftime("%Y-%m-%d")
-        jogos_iniciais = [
-            (
-                "UEFA Nations League A", "15:45", "Itália", "Bélgica", "Ambas Marcam (Sim)", 1.82, 17.5,
-                "🔍 **Análise Tática:** Confronto de altíssimo nível tático. A Itália joga em casa sob forte pressão por consistência defensiva, mas tem concedido espaços nas transições rápidas pelos flancos. A Bélgica vem com força total no ataque (De Bruyne e companhia), o que torna a linha de Ambas Marcam altamente provável pelo volume de chances criadas de ambos os lados.",
-                hoje_str
-            ),
-            (
-                "UEFA Nations League A", "15:45", "Turquia", "France", "Handicap Asiático -0.75 França", 1.88, 16.2,
-                "🔍 **Análise Tática:** Jogar na Turquia é sempre um ambiente hostil, mas a profundidade do elenco francês e a superioridade técnica em todas as setores pesam demais. A França costuma controlar o ritmo e punir erros na saída de bola adversária. O handicap -0.75 protege boa parte da aposta caso vençam por apenas 1 gol de diferença.",
-                hoje_str
-            ),
-            (
-                "UEFA Nations League B", "15:45", "Hungria", "Ucrânia", "Mais de 8.5 Cantos", 1.75, 18.1,
-                "🔍 **Análise Tática:** Jogo truncado no meio-campo com forte tendência de bolas aéreas e finalizações de média distância bloqueadas. A Hungria força muito pelo lado direito gerando escanteios em casa, enquanto a Ucrânia explora os contra-ataques. Excelente valor para o mercado de cantos.",
-                hoje_str
-            ),
-            (
-                "Brasil - Brasileirão Série B", "19:30", "Grêmio Novorizontino", "São Bernardo", "Vitória Seca (1)", 1.55, 14.8,
-                "🔍 **Análise Tática:** O Novorizontino tem um dos desempenhos mais sólidos como mandante na competição, impondo forte pressão inicial. O São Bernardo sofre consideravelmente quando joga fora de seus domínios sob gramados pesados e pressão da torcida local.",
-                hoje_str
-            )
-        ]
-        c.executemany("INSERT INTO jogos_custom (torneio, horario, casa, fora, mercado, odd, ev, analise, data_alvo) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)", jogos_iniciais)
+    # Injeta os jogos reais de hoje com análises contextuais aprofundadas
+    fuso_br = timezone(timedelta(hours=-3))
+    hoje_str = datetime.now(fuso_br).strftime("%Y-%m-%d")
+    jogos_iniciais = [
+        (
+            "UEFA Nations League A", "15:45", "Itália", "Bélgica", "Ambas Marcam (Sim)", 1.82, 17.5,
+            "🔍 **Análise Tática:** Confronto de altíssimo nível. A Itália joga em casa sob pressão por solidez defensiva, mas concede espaços nas transições rápidas pelos flancos. A Bélgica vem com força total no ataque (De Bruyne), tornando o mercado de Ambas Marcam altamente provável pelo volume de chances criadas.",
+            hoje_str
+        ),
+        (
+            "UEFA Nations League A", "15:45", "Turquia", "França", "Handicap Asiático -0.75 França", 1.88, 16.2,
+            "🔍 **Análise Tática:** Jogar na Turquia é sempre um ambiente hostil, mas a profundidade do elenco francês e a superioridade técnica pesam demais. A França controla o ritmo e pune erros na saída de bola adversária. O handicap -0.75 protege a aposta em caso de vitória magra por 1 gol.",
+            hoje_str
+        ),
+        (
+            "UEFA Nations League B", "15:45", "Hungria", "Ucrânia", "Mais de 8.5 Cantos", 1.75, 18.1,
+            "🔍 **Análise Tática:** Jogo truncado no meio-campo com forte tendência de bolas aéreas e finalizações bloqueadas. A Hungria força muito pelo lado direito gerando cantos em casa, enquanto a Ucrânia explora os contra-ataques.",
+            hoje_str
+        ),
+        (
+            "Brasil - Brasileirão Série B", "19:30", "Grêmio Novorizontino", "São Bernardo", "Vitória Seca (1)", 1.55, 14.8,
+            "🔍 **Análise Tática:** O Novorizontino tem um dos desempenhos mais sólidos como mandante na competição, impondo forte pressão inicial. O São Bernardo sofre consideravelmente quando joga fora de casa sob gramados pesados.",
+            hoje_str
+        )
+    ]
+    c.executemany("INSERT INTO jogos_custom (torneio, horario, casa, fora, mercado, odd, ev, analise, data_alvo) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)", jogos_iniciais)
         
     conn.commit()
     conn.close()
