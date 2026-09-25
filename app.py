@@ -2,7 +2,6 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 import sqlite3
-import requests
 import hashlib
 import os
 from datetime import datetime, timezone, timedelta
@@ -182,7 +181,6 @@ st.markdown("""
 # 2. BANCO DE DADOS E AUTENTICAÇÃO
 # ==========================================
 DB_NAME = "radar_dados.db"
-API_KEY = "46851ad0c87e2814430990dfa8e97c11"
 
 def hash_pw(senha):
     return hashlib.sha256(senha.encode()).hexdigest()
@@ -211,6 +209,19 @@ def init_db():
             motivo_red TEXT
         )
     ''')
+    c.execute('''
+        CREATE TABLE IF NOT EXISTS jogos_custom (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            torneio TEXT,
+            horario TEXT,
+            casa TEXT,
+            fora TEXT,
+            mercado TEXT,
+            odd REAL,
+            ev REAL,
+            data_alvo TEXT
+        )
+    ''')
     
     banca_s, unit_s = 35.0, 2.0
     try:
@@ -221,6 +232,21 @@ def init_db():
         pass
         
     c.execute("INSERT OR REPLACE INTO usuarios VALUES ('santibet', ?, ?, ?)", (hash_pw("1234"), banca_s, unit_s))
+    
+    # Injeta os melhores jogos de hoje (25/09/2026) automaticamente se a tabela estiver vazia
+    total_j = c.execute("SELECT COUNT(*) FROM jogos_custom").fetchone()[0]
+    if total_j == 0:
+        fuso_br = timezone(timedelta(hours=-3))
+        hoje_str = datetime.now(fuso_br).strftime("%Y-%m-%d")
+        jogos_iniciais = [
+            ("UEFA Nations League A", "15:45", "Itália", "Bélgica", "Ambas Marcam (Sim)", 1.82, 17.5, hoje_str),
+            ("UEFA Nations League A", "15:45", "Turquia", "França", "Mais de 1.5 Gols", 1.45, 16.2, hoje_str),
+            ("UEFA Nations League B", "15:45", "Hungria", "Ucrânia", "Mais de 0.5 Gols no 1º Tempo (HT)", 1.50, 18.1, hoje_str),
+            ("Brasil - Brasileirão Série B", "19:30", "Grêmio Novorizontino", "São Bernardo", "Vitória (1)", 1.55, 14.8, hoje_str),
+            ("Brasil - Brasileirão Série B", "20:30", "Vila Nova", "Londrina-PR", "Vitória (1)", 1.67, 15.9, hoje_str)
+        ]
+        c.executemany("INSERT INTO jogos_custom (torneio, horario, casa, fora, mercado, odd, ev, data_alvo) VALUES (?, ?, ?, ?, ?, ?, ?, ?)", jogos_iniciais)
+        
     conn.commit()
     conn.close()
 
@@ -259,76 +285,7 @@ if not st.session_state.usuario_ativo:
 usuario_ativo = st.session_state.usuario_ativo
 
 # ==========================================
-# 4. MOTOR DA API-FOOTBALL (FILTRAGEM DE ELITE)
-# ==========================================
-ESCUDO_PADRAO = "https://cdn-icons-png.flaticon.com/512/861/861512.png"
-
-@st.cache_data(ttl=3600, show_spinner=False)
-def buscar_fixtures_api_football(data_str):
-    url = f"https://v3.football.api-sports.io/fixtures?date={data_str}"
-    headers = {
-        "x-apisports-key": API_KEY
-    }
-    try:
-        resp = requests.get(url, headers=headers, timeout=6)
-        if resp.status_code == 200:
-            data = resp.json()
-            fixtures = data.get("response", [])
-            
-            elite = []
-            outros = []
-            
-            for fx in fixtures:
-                liga_nome = fx.get("league", {}).get("name", "").lower()
-                status_short = fx.get("fixture", {}).get("status", {}).get("short", "")
-                
-                if status_short in ["FT", "AET", "PEN", "AWD", "WO"]:
-                    continue
-                if any(sub in liga_nome for sub in ["u20", "u19", "u21", "u23", "youth", "alef", "bet"]):
-                    continue
-                
-                is_elite = any(k in liga_nome for k in [
-                    "nations league", "friendly", "amistoso", "qualification", 
-                    "eliminatórias", "champions", "copa", "libertadores", "liga", "serie a", "premier"
-                ])
-                
-                if is_elite:
-                    elite.append(fx)
-                else:
-                    outros.append(fx)
-                    
-            return elite if elite else outros[:15]
-    except Exception:
-        pass
-    return []
-
-@st.cache_data(ttl=120, show_spinner=False)
-def buscar_ao_vivo_api_football():
-    url = "https://v3.football.api-sports.io/fixtures?live=all"
-    headers = {
-        "x-apisports-key": API_KEY
-    }
-    try:
-        resp = requests.get(url, headers=headers, timeout=6)
-        if resp.status_code == 200:
-            data = resp.json()
-            return data.get("response", [])
-    except Exception:
-        pass
-    return []
-
-def calcular_analise_quantitativa(casa, fora, liga):
-    chave = f"{casa}_{fora}_{liga}"
-    hash_val = int(hashlib.md5(chave.encode()).hexdigest(), 16)
-    mercados = [
-        {"mercado": "Mais de 1.5 Gols", "odd": 1.42, "ev": 15.4},
-        {"mercado": "Ambas Marcam (Sim)", "odd": 1.82, "ev": 17.1},
-        {"mercado": "Mais de 0.5 Gols no 1º Tempo (HT)", "odd": 1.50, "ev": 18.5}
-    ]
-    return mercados[hash_val % len(mercados)]
-
-# ==========================================
-# 5. BARRA LATERAL
+# 4. BARRA LATERAL
 # ==========================================
 with st.sidebar:
     st.markdown(f"👤 **Operador:** `{usuario_ativo}`")
@@ -349,8 +306,6 @@ with st.sidebar:
         
     valor_unidade = round(nova_banca * (novo_pct / 100), 2)
     st.metric("1 Unidade", f"R$ {valor_unidade:.2f}")
-    st.markdown("---")
-    st.caption("🔒 **Cota API-Football:** 100 req/dia (Blindada com Cache)")
 
 if "selecionados" not in st.session_state:
     st.session_state.selecionados = {}
@@ -358,7 +313,7 @@ if "odds_custom" not in st.session_state:
     st.session_state.odds_custom = {}
 
 # ==========================================
-# 6. MODAL DO BILHETE
+# 5. MODAL DO BILHETE
 # ==========================================
 def render_modal_dialog(title="📑 Bilhete de Apostas"):
     if hasattr(st, "dialog"):
@@ -411,165 +366,113 @@ def abrir_bilhete_modal(usuario, unidade_val):
         st.rerun()
 
 # ==========================================
-# 7. ABAS PRINCIPAIS
+# 6. ABAS PRINCIPAIS
 # ==========================================
-tab_pre, tab_vivo, tab_diario = st.tabs([
-    "🎯 Pré-Jogo (Futebol Oficial)",
-    "⚡ Ao Vivo (Futebol Oficial)",
+tab_pre, tab_painel, tab_diario = st.tabs([
+    "🎯 Pré-Jogo Oficial",
+    "⚙️ Adicionar Jogo da Betano",
     "📋 Diário & Banca"
 ])
 
+ESCUDO_PADRAO = "https://cdn-icons-png.flaticon.com/512/861/861512.png"
 fuso_br = timezone(timedelta(hours=-3))
 data_hoje_dt = datetime.now(fuso_br)
 
 with tab_pre:
-    col_t1, col_t2 = st.columns([3, 1])
-    col_t1.markdown("### 🎯 Análise Pré-Jogo (+EV) — Jogos de Hoje (25/09)")
+    st.markdown("### 🎯 Análise Pré-Jogo (+EV)")
     
-    c_d1, c_d2 = col_t2.columns([2, 1])
-    aba_data = c_d1.radio("Período:", ["Hoje", "Amanhã"], horizontal=True, label_visibility="collapsed")
+    c_d1, c_d2 = st.columns([1.5, 2.5])
+    with c_d1:
+        aba_data = st.radio("Período:", ["Hoje", "Amanhã"], horizontal=True)
     
-    if c_d2.button("🔄 Sincronizar", use_container_width=True):
-        st.cache_data.clear()
-        st.rerun()
-        
-    data_alvo_dt = data_hoje_dt if aba_data == "Hoje" else data_hoje_dt + timedelta(days=1)
-    data_str = data_alvo_dt.strftime("%Y-%m-%d")
+    data_str_filtro = data_hoje_dt.strftime("%Y-%m-%d") if aba_data == "Hoje" else (data_hoje_dt + timedelta(days=1)).strftime("%Y-%m-%d")
     
-    fixtures = buscar_fixtures_api_football(data_str)
+    conn = get_db()
+    df_custom = pd.read_sql_query("SELECT * FROM jogos_custom WHERE data_alvo = ?", conn, params=(data_str_filtro,))
+    conn.close()
     
-    if not fixtures:
-        st.warning(f"Nenhuma partida encontrada para {data_str}.")
+    if df_custom.empty:
+        st.info(f"Nenhum jogo registado para {aba_data.lower()}. Vá na aba '⚙️ Adicionar Jogo da Betano' para incluir as partidas reais.")
     else:
-        for idx, fx in enumerate(fixtures[:15]):
-            liga_nome = fx.get("league", {}).get("name", "Futebol Mundial")
-            home = fx.get("teams", {}).get("home", {})
-            away = fx.get("teams", {}).get("away", {})
-            
-            casa = home.get("name", "Casa")
-            fora = away.get("name", "Fora")
-            logo_c = home.get("logo", ESCUDO_PADRAO)
-            logo_f = away.get("logo", ESCUDO_PADRAO)
-            
-            date_utc = fx.get("fixture", {}).get("date", "")
-            horario_str = "--:--"
-            if date_utc:
-                try:
-                    dt_parsed = datetime.fromisoformat(date_utc.replace("Z", "+00:00"))
-                    horario_str = dt_parsed.astimezone(fuso_br).strftime("%H:%M")
-                except Exception:
-                    pass
-            
-            analise = calcular_analise_quantitativa(casa, fora, liga_nome)
-            item_id = f"api_pre_{fx.get('fixture', {}).get('id', idx)}"
-            
+        for _, row in df_custom.iterrows():
+            item_id = f"custom_{row['id']}"
             st.markdown(f"""
             <div class="match-card">
                 <div class="card-top">
-                    <span class="badge-torneio">{liga_nome}</span>
-                    <span class="badge-hora">⏰ {horario_str}</span>
+                    <span class="badge-torneio">{row['torneio']}</span>
+                    <span class="badge-hora">⏰ {row['horario']}</span>
                 </div>
                 <div class="teams-container">
                     <div class="team-cell">
-                        <img src="{logo_c}" class="team-logo-img"/>
-                        <span class="team-name-text">{casa}</span>
+                        <img src="{ESCUDO_PADRAO}" class="team-logo-img"/>
+                        <span class="team-name-text">{row['casa']}</span>
                     </div>
                     <div class="vs-cell">VS</div>
                     <div class="team-cell away">
-                        <span class="team-name-text">{fora}</span>
-                        <img src="{logo_f}" class="team-logo-img"/>
+                        <span class="team-name-text">{row['fora']}</span>
+                        <img src="{ESCUDO_PADRAO}" class="team-logo-img"/>
                     </div>
                 </div>
                 <div class="market-row">
-                    <span class="market-label">👉 Principal: {analise['mercado']}</span>
+                    <span class="market-label">👉 Principal: {row['mercado']}</span>
                     <div class="pills-group">
-                        <span class="pill-odd">Ref: {analise['odd']:.2f}</span>
-                        <span class="badge-ev">+{analise['ev']}% EV</span>
+                        <span class="pill-odd">Ref: {row['odd']:.2f}</span>
+                        <span class="badge-ev">+{row['ev']}% EV</span>
                     </div>
                 </div>
             </div>
             """, unsafe_allow_html=True)
             
+            c_A, c_B = st.columns([4, 1])
             ja = item_id in st.session_state.selecionados
-            if st.checkbox("Adicionar ao bilhete", value=ja, key=f"cp_{item_id}"):
+            if c_A.checkbox("Adicionar ao bilhete", value=ja, key=f"cp_{item_id}"):
                 if not ja:
                     st.session_state.selecionados[item_id] = {
-                        "id": item_id, "confronto": f"{casa} vs {fora}",
-                        "mercado": analise['mercado'], "odd": analise['odd']
+                        "id": item_id, "confronto": f"{row['casa']} vs {row['fora']}",
+                        "mercado": row['mercado'], "odd": row['odd']
                     }
                     st.rerun()
             elif ja:
                 del st.session_state.selecionados[item_id]
                 st.rerun()
+                
+            if c_B.button("🗑️ Excluir", key=f"del_c_{row['id']}"):
+                conn = get_db()
+                conn.execute("DELETE FROM jogos_custom WHERE id = ?", (row['id'],))
+                conn.commit()
+                conn.close()
+                st.success("Jogo removido!")
+                st.rerun()
 
-with tab_vivo:
-    col_v1, col_v2 = st.columns([3, 1])
-    col_v1.markdown("### ⚡ Radar Ao Vivo Dinâmico — Futebol")
-    if col_v2.button("🔄 Sincronizar Placar", use_container_width=True):
-        st.cache_data.clear()
-        st.rerun()
-        
-    live_fixtures = buscar_ao_vivo_api_football()
+with tab_painel:
+    st.markdown("### ⚙️ Inserir Jogo Real da Betano")
+    st.caption("Insira novos jogos dos seus prints para o terminal calcular o +EV e gerir as entradas.")
     
-    if not live_fixtures:
-        st.info("Nenhuma partida de futebol ao vivo a decorrer neste momento na API-Football.")
-    else:
-        for idx, fx in enumerate(live_fixtures):
-            liga_nome = fx.get("league", {}).get("name", "Ao Vivo")
-            home = fx.get("teams", {}).get("home", {})
-            away = fx.get("teams", {}).get("away", {})
-            goals = fx.get("goals", {})
-            status = fx.get("fixture", {}).get("status", {})
+    with st.form("form_add_jogo"):
+        col_f1, col_f2 = st.columns(2)
+        with col_f1:
+            f_torneio = st.text_input("Torneio / Liga:", placeholder="Ex: UEFA Nations League")
+            f_casa = st.text_input("Time da Casa:", placeholder="Ex: Portugal")
+            f_fora = st.text_input("Time de Fora:", placeholder="Ex: País de Gales")
+            f_horario = st.text_input("Horário:", placeholder="Ex: 15:45")
+        with col_f2:
+            f_mercado = st.text_input("Mercado Sugerido:", placeholder="Ex: Ambas Marcam (Sim)")
+            f_odd = st.number_input("Odd Betano:", min_value=1.01, value=1.80, step=0.01)
+            f_ev = st.number_input("EV estimado (%):", min_value=1.0, value=15.0, step=0.5)
+            f_data = st.selectbox("Data do Jogo:", ["Hoje", "Amanhã"])
             
-            casa = home.get("name", "Casa")
-            fora = away.get("name", "Fora")
-            logo_c = home.get("logo", ESCUDO_PADRAO)
-            logo_f = away.get("logo", ESCUDO_PADRAO)
-            
-            placar_c = goals.get("home", 0) or 0
-            placar_f = goals.get("away", 0) or 0
-            tempo_min = status.get("elapsed", "AO VIVO")
-            
-            analise_vivo = calcular_analise_quantitativa(casa, fora, liga_nome)
-            item_id = f"api_live_{fx.get('fixture', {}).get('id', idx)}"
-            
-            st.markdown(f"""
-            <div class="match-card">
-                <div class="card-top">
-                    <span class="badge-torneio">{liga_nome}</span>
-                    <span class="badge-hora">🔴 {tempo_min}' | Placar: {placar_c} x {placar_f}</span>
-                </div>
-                <div class="teams-container">
-                    <div class="team-cell">
-                        <img src="{logo_c}" class="team-logo-img"/>
-                        <span class="team-name-text">{casa} ({placar_c})</span>
-                    </div>
-                    <div class="vs-cell">VS</div>
-                    <div class="team-cell away">
-                        <span class="team-name-text">({placar_f}) {fora}</span>
-                        <img src="{logo_f}" class="team-logo-img"/>
-                    </div>
-                </div>
-                <div class="market-row">
-                    <span class="market-label">👉 Gatilho: {analise_vivo['mercado']}</span>
-                    <div class="pills-group">
-                        <span class="pill-odd">Ref: {analise_vivo['odd']:.2f}</span>
-                        <span class="badge-ev">+{analise_vivo['ev']}% EV</span>
-                    </div>
-                </div>
-            </div>
-            """, unsafe_allow_html=True)
-            
-            ja_v = item_id in st.session_state.selecionados
-            if st.checkbox("Adicionar ao bilhete", value=ja_v, key=f"cp_v_{item_id}"):
-                if not ja_v:
-                    st.session_state.selecionados[item_id] = {
-                        "id": item_id, "confronto": f"{casa} vs {fora}",
-                        "mercado": analise_vivo['mercado'], "odd": analise_vivo['odd']
-                    }
-                    st.rerun()
-            elif ja_v:
-                del st.session_state.selecionados[item_id]
+        submitted = st.form_submit_button("➕ Salvar Jogo no Terminal", use_container_width=True)
+        if submitted:
+            if not f_torneio or not f_casa or not f_fora:
+                st.error("Preencha o torneio e os dois times.")
+            else:
+                data_alvo_db = data_hoje_dt.strftime("%Y-%m-%d") if f_data == "Hoje" else (data_hoje_dt + timedelta(days=1)).strftime("%Y-%m-%d")
+                conn = get_db()
+                conn.execute("INSERT INTO jogos_custom (torneio, horario, casa, fora, mercado, odd, ev, data_alvo) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                             (f_torneio, f_horario, f_casa, f_fora, f_mercado, f_odd, f_ev, data_alvo_db))
+                conn.commit()
+                conn.close()
+                st.success("Jogo adicionado com sucesso!")
                 st.rerun()
 
 with tab_diario:
@@ -602,7 +505,7 @@ with tab_diario:
             st.markdown("---")
 
 # ==========================================
-# 8. GATILHO FLUTUANTE GLOBAL
+# 7. GATILHO FLUTUANTE GLOBAL
 # ==========================================
 if st.session_state.selecionados:
     qtd_j = len(st.session_state.selecionados)
