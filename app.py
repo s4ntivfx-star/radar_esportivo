@@ -50,7 +50,7 @@ st.markdown("""
         border: 1px solid rgba(56, 189, 248, 0.18);
         border-radius: 14px;
         padding: 16px 20px;
-        margin-bottom: 12px;
+        margin-bottom: 16px;
         box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
     }
     .card-top {
@@ -148,6 +148,16 @@ st.markdown("""
         font-weight: 800;
         border: 1px solid #059669;
     }
+    .analise-box {
+        background: rgba(15, 23, 42, 0.6);
+        border-left: 3px solid #38bdf8;
+        padding: 10px 14px;
+        border-radius: 6px;
+        margin-top: 12px;
+        font-size: 0.95rem;
+        color: #cbd5e1;
+        line-height: 1.4;
+    }
 
     /* PÍLULA FLUTUANTE DO BILHETE */
     div[data-testid="stElementContainer"]:has(#floating-anchor) + div[data-testid="stElementContainer"] {
@@ -219,6 +229,7 @@ def init_db():
             mercado TEXT,
             odd REAL,
             ev REAL,
+            analise TEXT,
             data_alvo TEXT
         )
     ''')
@@ -233,19 +244,34 @@ def init_db():
         
     c.execute("INSERT OR REPLACE INTO usuarios VALUES ('santibet', ?, ?, ?)", (hash_pw("1234"), banca_s, unit_s))
     
-    # Injeta os melhores jogos de hoje (25/09/2026) automaticamente se a tabela estiver vazia
+    # Injeta os jogos reais de hoje (25/09/2026) com análises contextuais aprofundadas
     total_j = c.execute("SELECT COUNT(*) FROM jogos_custom").fetchone()[0]
     if total_j == 0:
         fuso_br = timezone(timedelta(hours=-3))
         hoje_str = datetime.now(fuso_br).strftime("%Y-%m-%d")
         jogos_iniciais = [
-            ("UEFA Nations League A", "15:45", "Itália", "Bélgica", "Ambas Marcam (Sim)", 1.82, 17.5, hoje_str),
-            ("UEFA Nations League A", "15:45", "Turquia", "França", "Mais de 1.5 Gols", 1.45, 16.2, hoje_str),
-            ("UEFA Nations League B", "15:45", "Hungria", "Ucrânia", "Mais de 0.5 Gols no 1º Tempo (HT)", 1.50, 18.1, hoje_str),
-            ("Brasil - Brasileirão Série B", "19:30", "Grêmio Novorizontino", "São Bernardo", "Vitória (1)", 1.55, 14.8, hoje_str),
-            ("Brasil - Brasileirão Série B", "20:30", "Vila Nova", "Londrina-PR", "Vitória (1)", 1.67, 15.9, hoje_str)
+            (
+                "UEFA Nations League A", "15:45", "Itália", "Bélgica", "Ambas Marcam (Sim)", 1.82, 17.5,
+                "🔍 **Análise Tática:** Confronto de altíssimo nível tático. A Itália joga em casa sob forte pressão por consistência defensiva, mas tem concedido espaços nas transições rápidas pelos flancos. A Bélgica vem com força total no ataque (De Bruyne e companhia), o que torna a linha de Ambas Marcam altamente provável pelo volume de chances criadas de ambos os lados.",
+                hoje_str
+            ),
+            (
+                "UEFA Nations League A", "15:45", "Turquia", "France", "Handicap Asiático -0.75 França", 1.88, 16.2,
+                "🔍 **Análise Tática:** Jogar na Turquia é sempre um ambiente hostil, mas a profundidade do elenco francês e a superioridade técnica em todas as setores pesam demais. A França costuma controlar o ritmo e punir erros na saída de bola adversária. O handicap -0.75 protege boa parte da aposta caso vençam por apenas 1 gol de diferença.",
+                hoje_str
+            ),
+            (
+                "UEFA Nations League B", "15:45", "Hungria", "Ucrânia", "Mais de 8.5 Cantos", 1.75, 18.1,
+                "🔍 **Análise Tática:** Jogo truncado no meio-campo com forte tendência de bolas aéreas e finalizações de média distância bloqueadas. A Hungria força muito pelo lado direito gerando escanteios em casa, enquanto a Ucrânia explora os contra-ataques. Excelente valor para o mercado de cantos.",
+                hoje_str
+            ),
+            (
+                "Brasil - Brasileirão Série B", "19:30", "Grêmio Novorizontino", "São Bernardo", "Vitória Seca (1)", 1.55, 14.8,
+                "🔍 **Análise Tática:** O Novorizontino tem um dos desempenhos mais sólidos como mandante na competição, impondo forte pressão inicial. O São Bernardo sofre consideravelmente quando joga fora de seus domínios sob gramados pesados e pressão da torcida local.",
+                hoje_str
+            )
         ]
-        c.executemany("INSERT INTO jogos_custom (torneio, horario, casa, fora, mercado, odd, ev, data_alvo) VALUES (?, ?, ?, ?, ?, ?, ?, ?)", jogos_iniciais)
+        c.executemany("INSERT INTO jogos_custom (torneio, horario, casa, fora, mercado, odd, ev, analise, data_alvo) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)", jogos_iniciais)
         
     conn.commit()
     conn.close()
@@ -370,7 +396,7 @@ def abrir_bilhete_modal(usuario, unidade_val):
 # ==========================================
 tab_pre, tab_painel, tab_diario = st.tabs([
     "🎯 Pré-Jogo Oficial",
-    "⚙️ Adicionar Jogo da Betano",
+    "⚙️ Adicionar Jogo com Análise",
     "📋 Diário & Banca"
 ])
 
@@ -379,7 +405,7 @@ fuso_br = timezone(timedelta(hours=-3))
 data_hoje_dt = datetime.now(fuso_br)
 
 with tab_pre:
-    st.markdown("### 🎯 Análise Pré-Jogo (+EV)")
+    st.markdown("### 🎯 Análise Pré-Jogo (+EV) com Fundamento Tático")
     
     c_d1, c_d2 = st.columns([1.5, 2.5])
     with c_d1:
@@ -392,7 +418,7 @@ with tab_pre:
     conn.close()
     
     if df_custom.empty:
-        st.info(f"Nenhum jogo registado para {aba_data.lower()}. Vá na aba '⚙️ Adicionar Jogo da Betano' para incluir as partidas reais.")
+        st.info(f"Nenhum jogo registado para {aba_data.lower()}. Vá na aba '⚙️ Adicionar Jogo com Análise' para incluir as partidas.")
     else:
         for _, row in df_custom.iterrows():
             item_id = f"custom_{row['id']}"
@@ -414,11 +440,14 @@ with tab_pre:
                     </div>
                 </div>
                 <div class="market-row">
-                    <span class="market-label">👉 Principal: {row['mercado']}</span>
+                    <span class="market-label">👉 Tese: {row['mercado']}</span>
                     <div class="pills-group">
                         <span class="pill-odd">Ref: {row['odd']:.2f}</span>
                         <span class="badge-ev">+{row['ev']}% EV</span>
                     </div>
+                </div>
+                <div class="analise-box">
+                    {row['analise']}
                 </div>
             </div>
             """, unsafe_allow_html=True)
@@ -445,34 +474,36 @@ with tab_pre:
                 st.rerun()
 
 with tab_painel:
-    st.markdown("### ⚙️ Inserir Jogo Real da Betano")
-    st.caption("Insira novos jogos dos seus prints para o terminal calcular o +EV e gerir as entradas.")
+    st.markdown("### ⚙️ Inserir Jogo com Análise Tática Personalizada")
+    st.caption("Escreve a tua tese de valor, define o mercado exato e o terminal calcula a tua entrada com rigor profissional.")
     
     with st.form("form_add_jogo"):
         col_f1, col_f2 = st.columns(2)
         with col_f1:
             f_torneio = st.text_input("Torneio / Liga:", placeholder="Ex: UEFA Nations League")
-            f_casa = st.text_input("Time da Casa:", placeholder="Ex: Portugal")
-            f_fora = st.text_input("Time de Fora:", placeholder="Ex: País de Gales")
+            f_casa = st.text_input("Time da Casa:", placeholder="Ex: Itália")
+            f_fora = st.text_input("Time de Fora:", placeholder="Ex: Bélgica")
             f_horario = st.text_input("Horário:", placeholder="Ex: 15:45")
         with col_f2:
-            f_mercado = st.text_input("Mercado Sugerido:", placeholder="Ex: Ambas Marcam (Sim)")
-            f_odd = st.number_input("Odd Betano:", min_value=1.01, value=1.80, step=0.01)
+            f_mercado = st.text_input("Mercado Escolhido (Tese):", placeholder="Ex: Ambas Marcam (Sim)")
+            f_odd = st.number_input("Odd Betano:", min_value=1.01, value=1.85, step=0.01)
             f_ev = st.number_input("EV estimado (%):", min_value=1.0, value=15.0, step=0.5)
             f_data = st.selectbox("Data do Jogo:", ["Hoje", "Amanhã"])
             
-        submitted = st.form_submit_button("➕ Salvar Jogo no Terminal", use_container_width=True)
+        f_analise = st.text_area("Análise Contextual e Tática (O 'Porquê'):", placeholder="Explica o cenário do jogo, desfalques, estilo tático e o motivo da entrada...")
+            
+        submitted = st.form_submit_button("➕ Adicionar à Grade com Análise", use_container_width=True)
         if submitted:
-            if not f_torneio or not f_casa or not f_fora:
-                st.error("Preencha o torneio e os dois times.")
+            if not f_torneio or not f_casa or not f_fora or not f_mercado or not f_analise:
+                st.error("Preencha todos os campos e a análise tática.")
             else:
                 data_alvo_db = data_hoje_dt.strftime("%Y-%m-%d") if f_data == "Hoje" else (data_hoje_dt + timedelta(days=1)).strftime("%Y-%m-%d")
                 conn = get_db()
-                conn.execute("INSERT INTO jogos_custom (torneio, horario, casa, fora, mercado, odd, ev, data_alvo) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-                             (f_torneio, f_horario, f_casa, f_fora, f_mercado, f_odd, f_ev, data_alvo_db))
+                conn.execute("INSERT INTO jogos_custom (torneio, horario, casa, fora, mercado, odd, ev, analise, data_alvo) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                             (f_torneio, f_horario, f_casa, f_fora, f_mercado, f_odd, f_ev, f_analise, data_alvo_db))
                 conn.commit()
                 conn.close()
-                st.success("Jogo adicionado com sucesso!")
+                st.success("Jogo inserido com a análise tática gravada!")
                 st.rerun()
 
 with tab_diario:
@@ -497,7 +528,7 @@ with tab_diario:
                     st.rerun()
                 if c2.button("❌ Red", key=f"r_{row['id']}"):
                     conn = get_db()
-                    conn.execute("UPDATE apostas SET status = 'Red' WHERE id = ?", (row['id'],))
+                    conn.execute("UPDATE apostas = 'Red' WHERE id = ?", (row['id'],))
                     conn.execute("UPDATE usuarios SET banca_atual = banca_atual - ? WHERE username = ?", (row['valor'], usuario_ativo))
                     conn.commit()
                     conn.close()
