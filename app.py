@@ -259,7 +259,7 @@ if not st.session_state.usuario_ativo:
 usuario_ativo = st.session_state.usuario_ativo
 
 # ==========================================
-# 4. MOTOR DA API-FOOTBALL (ORDENAÇÃO DE ELITE NO TOPO)
+# 4. MOTOR DA API-FOOTBALL (FILTRAGEM DE ELITE)
 # ==========================================
 ESCUDO_PADRAO = "https://cdn-icons-png.flaticon.com/512/861/861512.png"
 
@@ -287,10 +287,9 @@ def buscar_fixtures_api_football(data_str):
                 if any(sub in liga_nome for sub in ["u20", "u19", "u21", "u23", "youth", "alef", "bet"]):
                     continue
                 
-                # Joga Nations League, Eliminatórias e Copas de Seleções direto para o topo
                 is_elite = any(k in liga_nome for k in [
                     "nations league", "friendly", "amistoso", "qualification", 
-                    "eliminatórias", "champions", "copa", "libertadores"
+                    "eliminatórias", "champions", "copa", "libertadores", "liga", "serie a", "premier"
                 ])
                 
                 if is_elite:
@@ -298,7 +297,6 @@ def buscar_fixtures_api_football(data_str):
                 else:
                     outros.append(fx)
                     
-            # Prioridade absoluta para a elite
             return elite if elite else outros[:15]
     except Exception:
         pass
@@ -426,7 +424,7 @@ data_hoje_dt = datetime.now(fuso_br)
 
 with tab_pre:
     col_t1, col_t2 = st.columns([3, 1])
-    col_t1.markdown("### 🎯 Análise Pré-Jogo (+EV) — Nations League & Seleções")
+    col_t1.markdown("### 🎯 Análise Pré-Jogo (+EV) — Jogos de Hoje (25/09)")
     
     c_d1, c_d2 = col_t2.columns([2, 1])
     aba_data = c_d1.radio("Período:", ["Hoje", "Amanhã"], horizontal=True, label_visibility="collapsed")
