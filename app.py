@@ -199,7 +199,7 @@ def init_db():
     conn = sqlite3.connect(DB_NAME)
     c = conn.cursor()
     
-    # Recria limpo para atualizar a grade de hoje
+    # Recria limpo para injetar a grade completa dos prints
     c.execute("DROP TABLE IF EXISTS jogos_custom")
     
     c.execute('''
@@ -248,23 +248,33 @@ def init_db():
         
     c.execute("INSERT OR REPLACE INTO usuarios VALUES ('santibet', ?, ?, ?)", (hash_pw("1234"), banca_s, unit_s))
     
-    # Injeta a Trípla de Cobertura para hoje (27/09/2026)
+    # Injeta a grade COMPLETA baseada nos prints enviados pelo usuário
     fuso_br = timezone(timedelta(hours=-3))
     hoje_str = datetime.now(fuso_br).strftime("%Y-%m-%d")
     jogos_iniciais = [
         (
-            "UEFA Nations League A", "15:45", "Alemanha", "Grécia", "Vitória Seca (1)", 1.45, 15.2,
-            "🔍 **Análise Tática (Cobertura):** A Alemanha atua em casa com forte must-win para consolidar a liderança do grupo. Superioridade técnica clara no meio-campo para quebrar a linha defensiva grega.",
+            "UEFA Nations League A", "15:45", "Noruega", "Áustria", "Ambas Marcam (Sim)", 1.78, 16.5,
+            "🔍 **Análise Tática:** Confronto direto muito aberto. A Noruega conta com Haaland e um ímpeto ofensivo fortíssimo em casa, mas a defesa frequentemente cede espaços. A Áustria tem transições rápidas letais, indicando alta probabilidade de gols para ambos os lados.",
             hoje_str
         ),
         (
-            "Brasil - Brasileirão Série B", "18:30", "Fortaleza", "Athletic Club MG", "Vitória Seca (1)", 1.55, 16.5,
-            "🔍 **Análise Tática (Cobertura):** O Fortaleza em seus domínios impõe um ritmo sufocante desde o apito inicial. Fator casa e intensidade pesam a favor para buscar os 3 pontos na Série B.",
+            "Amistosos Internacionais / Seleções", "12:00", "Japão", "Austrália", "Vitória Seca (1)", 1.62, 14.8,
+            "🔍 **Análise Tática:** O Japão vive uma fase espetacular com disciplina tática rigorosa e muita velocidade pelos flancos. A Austrália sofre historicamente contra linhas defensivas japonesas compactas e compactação de meio-campo.",
             hoje_str
         ),
         (
-            "UEFA Nations League B", "13:00", "Áustria", "Kosovo", "Dupla Hipótese (1X)", 1.25, 14.0,
-            "🔍 **Análise Tática (Cobertura):** A Áustria é extremamente sólida como mandante, dificultando qualquer investida do Kosovo. Escolha segura para fechar a tripla de proteção com alta probabilidade de green.",
+            "MLS - Estados Unidos", "20:30", "Inter Miami", "Atlanta United", "Mais de 2.5 Gols", 1.58, 15.0,
+            "🔍 **Análise Tática:** Jogo com forte tendência ofensiva pelo estilo de jogo do Inter Miami (muita criação e fragilidade defensiva nas costas dos alas). O Atlanta costuma marcar fora de casa, armando um cenário ideal para over de gols.",
+            hoje_str
+        ),
+        (
+            "UEFA Nations League B", "15:45", "Ucrânia", "República Checa", "Mais de 8.5 Cantos", 1.72, 17.0,
+            "🔍 **Análise Tática:** Estilo de jogo físico e vertical de ambas as seleções, gerando muitos cruzamentos bloqueados na área e finalizações de média distância que resultam em tiros de canto.",
+            hoje_str
+        ),
+        (
+            "Brasil - Brasileirão Série B", "18:30", "Fortaleza", "Athletic Club MG", "Vitória Seca (1)", 1.55, 16.0,
+            "🔍 **Análise Tática:** O Fortaleza em seus domínios impõe uma pressão sufocante desde o primeiro minuto. Fator casa e intensidade pesam demais a favor para buscar os 3 pontos.",
             hoje_str
         )
     ]
@@ -392,7 +402,7 @@ def abrir_bilhete_modal(usuario, unidade_val):
 # 6. ABAS PRINCIPAIS
 # ==========================================
 tab_pre, tab_painel, tab_diario = st.tabs([
-    "🎯 Pré-Jogo Oficial",
+    "🎯 Pré-Jogo Oficial (Grade Completa)",
     "⚙️ Adicionar Jogo com Análise",
     "📋 Diário & Banca"
 ])
@@ -402,7 +412,7 @@ fuso_br = timezone(timedelta(hours=-3))
 data_hoje_dt = datetime.now(fuso_br)
 
 with tab_pre:
-    st.markdown("### 🎯 Análise Pré-Jogo (+EV) — Trípla de Cobertura")
+    st.markdown("### 🎯 Análise Pré-Jogo (+EV) — Grade Completa de Jogos")
     
     c_d1, c_d2 = st.columns([1.5, 2.5])
     with c_d1:
@@ -478,12 +488,12 @@ with tab_painel:
         col_f1, col_f2 = st.columns(2)
         with col_f1:
             f_torneio = st.text_input("Torneio / Liga:", placeholder="Ex: UEFA Nations League")
-            f_casa = st.text_input("Time da Casa:", placeholder="Ex: Alemanha")
-            f_fora = st.text_input("Time de Fora:", placeholder="Ex: Grécia")
+            f_casa = st.text_input("Time da Casa:", placeholder="Ex: Noruega")
+            f_fora = st.text_input("Time de Fora:", placeholder="Ex: Áustria")
             f_horario = st.text_input("Horário:", placeholder="Ex: 15:45")
         with col_f2:
-            f_mercado = st.text_input("Mercado Escolhido (Tese):", placeholder="Ex: Vitória Seca (1)")
-            f_odd = st.number_input("Odd Betano:", min_value=1.01, value=1.50, step=0.01)
+            f_mercado = st.text_input("Mercado Escolhido (Tese):", placeholder="Ex: Ambas Marcam (Sim)")
+            f_odd = st.number_input("Odd Betano:", min_value=1.01, value=1.75, step=0.01)
             f_ev = st.number_input("EV estimado (%):", min_value=1.0, value=15.0, step=0.5)
             f_data = st.selectbox("Data do Jogo:", ["Hoje", "Amanhã"])
             
