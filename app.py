@@ -199,7 +199,7 @@ def init_db():
     conn = sqlite3.connect(DB_NAME)
     c = conn.cursor()
     
-    # Força a recriação limpa se faltar a coluna analise
+    # Recria limpo para atualizar a grade de hoje
     c.execute("DROP TABLE IF EXISTS jogos_custom")
     
     c.execute('''
@@ -248,28 +248,23 @@ def init_db():
         
     c.execute("INSERT OR REPLACE INTO usuarios VALUES ('santibet', ?, ?, ?)", (hash_pw("1234"), banca_s, unit_s))
     
-    # Injeta os jogos reais de hoje com análises contextuais aprofundadas
+    # Injeta a Trípla de Cobertura para hoje (27/09/2026)
     fuso_br = timezone(timedelta(hours=-3))
     hoje_str = datetime.now(fuso_br).strftime("%Y-%m-%d")
     jogos_iniciais = [
         (
-            "UEFA Nations League A", "15:45", "Itália", "Bélgica", "Ambas Marcam (Sim)", 1.82, 17.5,
-            "🔍 **Análise Tática:** Confronto de altíssimo nível. A Itália joga em casa sob pressão por solidez defensiva, mas concede espaços nas transições rápidas pelos flancos. A Bélgica vem com força total no ataque (De Bruyne), tornando o mercado de Ambas Marcam altamente provável pelo volume de chances criadas.",
+            "UEFA Nations League A", "15:45", "Alemanha", "Grécia", "Vitória Seca (1)", 1.45, 15.2,
+            "🔍 **Análise Tática (Cobertura):** A Alemanha atua em casa com forte must-win para consolidar a liderança do grupo. Superioridade técnica clara no meio-campo para quebrar a linha defensiva grega.",
             hoje_str
         ),
         (
-            "UEFA Nations League A", "15:45", "Turquia", "França", "Handicap Asiático -0.75 França", 1.88, 16.2,
-            "🔍 **Análise Tática:** Jogar na Turquia é sempre um ambiente hostil, mas a profundidade do elenco francês e a superioridade técnica pesam demais. A França controla o ritmo e pune erros na saída de bola adversária. O handicap -0.75 protege a aposta em caso de vitória magra por 1 gol.",
+            "Brasil - Brasileirão Série B", "18:30", "Fortaleza", "Athletic Club MG", "Vitória Seca (1)", 1.55, 16.5,
+            "🔍 **Análise Tática (Cobertura):** O Fortaleza em seus domínios impõe um ritmo sufocante desde o apito inicial. Fator casa e intensidade pesam a favor para buscar os 3 pontos na Série B.",
             hoje_str
         ),
         (
-            "UEFA Nations League B", "15:45", "Hungria", "Ucrânia", "Mais de 8.5 Cantos", 1.75, 18.1,
-            "🔍 **Análise Tática:** Jogo truncado no meio-campo com forte tendência de bolas aéreas e finalizações bloqueadas. A Hungria força muito pelo lado direito gerando cantos em casa, enquanto a Ucrânia explora os contra-ataques.",
-            hoje_str
-        ),
-        (
-            "Brasil - Brasileirão Série B", "19:30", "Grêmio Novorizontino", "São Bernardo", "Vitória Seca (1)", 1.55, 14.8,
-            "🔍 **Análise Tática:** O Novorizontino tem um dos desempenhos mais sólidos como mandante na competição, impondo forte pressão inicial. O São Bernardo sofre consideravelmente quando joga fora de casa sob gramados pesados.",
+            "UEFA Nations League B", "13:00", "Áustria", "Kosovo", "Dupla Hipótese (1X)", 1.25, 14.0,
+            "🔍 **Análise Tática (Cobertura):** A Áustria é extremamente sólida como mandante, dificultando qualquer investida do Kosovo. Escolha segura para fechar a tripla de proteção com alta probabilidade de green.",
             hoje_str
         )
     ]
@@ -407,7 +402,7 @@ fuso_br = timezone(timedelta(hours=-3))
 data_hoje_dt = datetime.now(fuso_br)
 
 with tab_pre:
-    st.markdown("### 🎯 Análise Pré-Jogo (+EV) com Fundamento Tático")
+    st.markdown("### 🎯 Análise Pré-Jogo (+EV) — Trípla de Cobertura")
     
     c_d1, c_d2 = st.columns([1.5, 2.5])
     with c_d1:
@@ -483,12 +478,12 @@ with tab_painel:
         col_f1, col_f2 = st.columns(2)
         with col_f1:
             f_torneio = st.text_input("Torneio / Liga:", placeholder="Ex: UEFA Nations League")
-            f_casa = st.text_input("Time da Casa:", placeholder="Ex: Itália")
-            f_fora = st.text_input("Time de Fora:", placeholder="Ex: Bélgica")
+            f_casa = st.text_input("Time da Casa:", placeholder="Ex: Alemanha")
+            f_fora = st.text_input("Time de Fora:", placeholder="Ex: Grécia")
             f_horario = st.text_input("Horário:", placeholder="Ex: 15:45")
         with col_f2:
-            f_mercado = st.text_input("Mercado Escolhido (Tese):", placeholder="Ex: Ambas Marcam (Sim)")
-            f_odd = st.number_input("Odd Betano:", min_value=1.01, value=1.85, step=0.01)
+            f_mercado = st.text_input("Mercado Escolhido (Tese):", placeholder="Ex: Vitória Seca (1)")
+            f_odd = st.number_input("Odd Betano:", min_value=1.01, value=1.50, step=0.01)
             f_ev = st.number_input("EV estimado (%):", min_value=1.0, value=15.0, step=0.5)
             f_data = st.selectbox("Data do Jogo:", ["Hoje", "Amanhã"])
             
