@@ -5,6 +5,7 @@ import sqlite3
 import requests
 import hashlib
 import os
+import uuid
 from datetime import datetime, timezone, timedelta
 
 # ==========================================
@@ -281,6 +282,32 @@ def init_db():
             valor REAL,
             status TEXT,
             motivo_red TEXT
+        )
+    ''')
+    
+    # NOVAS TABELAS: ARENA P2P
+    c.execute('''
+        CREATE TABLE IF NOT EXISTS p2p_competicoes (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            codigo_link TEXT UNIQUE,
+            criador TEXT,
+            tipo_formato TEXT,
+            nome_competicao TEXT,
+            duracao_dias INTEGER,
+            valor_entrada REAL,
+            taxa_fee REAL,
+            status TEXT,
+            data_criacao TEXT
+        )
+    ''')
+    c.execute('''
+        CREATE TABLE IF NOT EXISTS p2p_participantes (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            competicao_id INTEGER,
+            usuario TEXT,
+            pontos INTEGER DEFAULT 0,
+            odd_acumulada REAL DEFAULT 1.0,
+            status_palpite TEXT DEFAULT 'Pendente'
         )
     ''')
     
@@ -1017,13 +1044,14 @@ def abrir_bilhete_modal(usuario, unidade_val):
     st.text_area("Copiar para grupo/conferência:", value=texto_wpp, height=140, key="wpp_modal")
 
 # ==========================================
-# 8. NAVEGAÇÃO PRINCIPAL EM 4 ABAS
+# 8. NAVEGAÇÃO PRINCIPAL EM 5 ABAS
 # ==========================================
-tab_pre, tab_vivo, tab_diario, tab_stats = st.tabs([
+tab_pre, tab_vivo, tab_diario, tab_stats, tab_p2p = st.tabs([
     "🎯 Oportunidades Pré-Jogo",
     "⚡ Radar Ao Vivo (Dinâmico)",
     "📋 Diário Operacional",
-    "📈 Desempenho & Yield"
+    "📈 Desempenho & Yield",
+    "🧪 Arena P2P (Modo Teste)"
 ])
 
 # ----------------------------------------------------
@@ -1280,6 +1308,131 @@ with tab_stats:
         m1.metric("Taxa de Assertividade", f"{winrate:.1f}%")
         m2.metric("Histórico", f"{greens}W / {reds}L")
         m3.metric("Resultado Líquido", f"R$ {lucro_total:+.2f}")
+
+# ----------------------------------------------------
+# ABA 5: ARENA P2P (MODO TESTE EXPERIMENTAL)
+# ----------------------------------------------------
+with tab_p2p:
+    st.markdown("### 🧪 Arena P2P — Desafios, Ligas e Duelos (Modo Teste)")
+    st.caption("Ambiente simulado para testar formatos competitivos P2P com saldo fictício de R$ 50,00 por participante.")
+
+    with st.expander("📖 Regras Operacionais do Modo Teste (Pontos Corridos, Mata-Mata e Duelo)", expanded=False):
+        st.markdown("""
+        * **1. Duelo Direto (1v1):**
+            * Taxa da Plataforma: R$ 2,00 retidos da entrada para manutenção e custódia tecnológica.
+            * Quem acerta a maior odd proporcional leva o pote principal.
+            * Em caso de **Duplo Red**, o valor apostado do pote base é devolvido aos dois jogadores (apenas a taxa de serviço fica retida).
+        * **2. Liga por Pontos Corridos:**
+            * **Vitória Direta:** 3 Pontos (Apenas um competidor dá Green).
+            * **Empate com Green:** 2 Pontos para a Odd mais alta e 1 Ponto para a Odd mais segura.
+            * **Duplo Red:** 0 Pontos para ambos na rodada.
+        * **3. Liga Mata-Mata (Copa):**
+            * Avança de fase quem obtiver a maior odd em caso de Green de ambos.
+            * Em caso de **Duplo Red em um chaveamento**, ambos são desclassificados e o vencedor da chave conectada avança direto (*Walkover*).
+        """)
+
+    col_p2p_1, col_p2p_2 = st.columns([1.5, 2.5])
+
+    with col_p2p_1:
+        st.markdown("#### ⚡ Criar Competição P2P")
+        with st.form("form_criar_p2p"):
+            f_nome = st.text_input("Nome do Desafio / Liga:", placeholder="Ex: Racha da Firma, Copa dos Crias")
+            f_formato = st.selectbox("Formato da Competição:", [
+                "Duelo Direto (1v1)", 
+                "Liga: Pontos Corridos", 
+                "Copa: Mata-Mata (Chaveamento)"
+            ])
+            f_duracao = st.selectbox("Duração:", [1, 2, 7, 14, 30], format_func=lambda x: f"{x} dia{'s' if x > 1 else ''}")
+            f_entrada = st.number_input("Entrada por Jogador (Fictício R$):", min_value=5.0, value=25.0, step=5.0)
+            f_fee = 2.0  # R$ 2,00 fixo da plataforma
+            
+            submit_p2p = st.form_submit_button("Gerar Competição & Link Único", use_container_width=True)
+            if submit_p2p:
+                if not f_nome.strip():
+                    st.warning("Insira um nome para a competição.")
+                else:
+                    link_uuid = f"duelo-{uuid.uuid4().hex[:8]}"
+                    conn = get_db()
+                    c = conn.cursor()
+                    c.execute("""
+                        INSERT INTO p2p_competicoes (codigo_link, criador, tipo_formato, nome_competicao, duracao_dias, valor_entrada, taxa_fee, status, data_criacao)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    """, (link_uuid, usuario_ativo, f_formato, f_nome, f_duracao, f_entrada, f_fee, "Aberta", datetime.now().strftime("%d/%m %H:%M")))
+                    
+                    comp_id = c.lastrowid
+                    c.execute("""
+                        INSERT INTO p2p_participantes (competicao_id, usuario, pontos, odd_acumulada, status_palpite)
+                        VALUES (?, ?, 0, 1.0, 'Inscrito')
+                    """, (comp_id, usuario_ativo))
+                    conn.commit()
+                    conn.close()
+                    st.success(f"Competição criada com sucesso! Código: {link_uuid}")
+                    st.rerun()
+
+    with col_p2p_2:
+        st.markdown("#### 🏆 Competições Ativas & Links de Convite")
+        conn = get_db()
+        df_comps = pd.read_sql_query("SELECT * FROM p2p_competicoes ORDER BY id DESC LIMIT 10", conn)
+        conn.close()
+
+        if df_comps.empty:
+            st.info("Nenhuma competição ou duelo aberto no momento. Crie um no formulário ao lado!")
+        else:
+            for _, c_row in df_comps.iterrows():
+                st.markdown(f"""
+                <div class="match-card" style="padding: 12px 16px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <span style="font-weight: 800; font-size: 1.1rem; color: #38bdf8;">{c_row['nome_competicao']}</span>
+                        <span class="badge-torneio">{c_row['tipo_formato']}</span>
+                    </div>
+                    <div style="display: flex; gap: 14px; margin-top: 8px; font-size: 0.9rem; color: #94a3b8;">
+                        <span>👤 Criador: <strong>{c_row['criador']}</strong></span>
+                        <span>💵 Entrada: <strong>R$ {c_row['valor_entrada']:.2f}</strong></span>
+                        <span>🛡️ Taxa Plataforma: <strong>R$ {c_row['taxa_fee']:.2f}</strong></span>
+                        <span>⏳ Duração: <strong>{c_row['duracao_dias']}d</strong></span>
+                    </div>
+                </div>
+                """, unsafe_allow_html=True)
+
+                col_link, col_entrar = st.columns([3, 1])
+                link_fake = f"https://radarpro.bet/arena/{c_row['codigo_link']}"
+                col_link.code(link_fake, language="text")
+                
+                if col_entrar.button("Entrar", key=f"join_{c_row['id']}", use_container_width=True):
+                    conn = get_db()
+                    ja_dentro = conn.execute("SELECT id FROM p2p_participantes WHERE competicao_id = ? AND usuario = ?", (c_row['id'], usuario_ativo)).fetchone()
+                    if ja_dentro:
+                        st.info("Você já está participando desta liga!")
+                    else:
+                        conn.execute("INSERT INTO p2p_participantes (competicao_id, usuario, pontos, odd_acumulada, status_palpite) VALUES (?, ?, 0, 1.0, 'Inscrito')", (c_row['id'], usuario_ativo))
+                        conn.commit()
+                        st.success("Inscrição confirmada!")
+                        st.rerun()
+                    conn.close()
+
+    st.markdown("---")
+    st.markdown("#### 🥇 Tabela de Classificação & Ranking Geral (Modo Teste)")
+    conn = get_db()
+    df_ranking = pd.read_sql_query("""
+        SELECT usuario, SUM(pontos) as total_pontos, COUNT(id) as total_disputas
+        FROM p2p_participantes
+        GROUP BY usuario
+        ORDER BY total_pontos DESC, total_disputas DESC
+    """, conn)
+    conn.close()
+
+    if df_ranking.empty:
+        st.caption("Ainda não há dados suficientes no ranking da comunidade.")
+    else:
+        st.dataframe(
+            df_ranking.rename(columns={
+                "usuario": "Apostador / Operador",
+                "total_pontos": "Pontos Conquistados",
+                "total_disputas": "Participações"
+            }),
+            use_container_width=True,
+            hide_index=True
+        )
 
 # ==========================================
 # 9. GATILHO FLUTUANTE GLOBAL (CANTO INFERIOR DIREITO)
